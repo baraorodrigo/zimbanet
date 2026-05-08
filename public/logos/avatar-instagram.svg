@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>Zimbanet Avatar para Instagram</title>
+  <defs>
+    <clipPath id="circle">
+      <circle cx="200" cy="200" r="200"></circle>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#circle)">
+    <rect width="400" height="400" fill="#0D1B2A"></rect>
+    <text x="200" y="230" text-anchor="middle" font-family="Georgia, &#39;Times New Roman&#39;, serif" font-size="200" font-weight="900" fill="#E8B100">Z</text>
+  </g>
+</svg>
