@@ -40,3 +40,16 @@ services:
       - "traefik.http.routers.zimbanet.tls.certresolver=letsencrypt"
 
       - "traefik.http.services.zimbanet.loadbalancer.server.port=3000"
+
+  radar:
+    build:
+      context: ./radar
+      dockerfile: Dockerfile
+    image: zimbanet-radar:latest
+    container_name: zimbanet-radar
+    restart: unless-stopped
+    env_file:
+      - ./radar/.env.production
+    expose:
+      - "8100"
+    # Sem labels Traefik — radar é privado, só o portal acessa via DNS interno `http://radar:8100`
