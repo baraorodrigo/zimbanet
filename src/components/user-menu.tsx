@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { signOut } from "@/lib/actions/auth";
 
 type Props = {
@@ -58,6 +59,14 @@ export default function UserMenu({ email, initials }: Props) {
               </p>
             </div>
           )}
+          <Link
+            href="/minha-conta"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-3 text-fs-13 font-semibold text-navy hover:bg-navy hover:text-zimba-gold transition-colors border-b border-border-subtle"
+          >
+            Minha conta
+          </Link>
           <form action={signOut}>
             <button
               type="submit"

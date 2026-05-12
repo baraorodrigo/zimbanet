@@ -2,6 +2,8 @@ import Link from "next/link";
 import Icon from "./icon";
 import UserMenu from "./user-menu";
 import MobileMenu from "./mobile-menu";
+import AuthModal from "./auth-modal";
+import OpenLoginButton from "./open-login-button";
 import { createClient } from "@/lib/supabase/server";
 import { getWeather } from "@/lib/weather";
 
@@ -92,7 +94,9 @@ export default async function SiteHeader() {
             {isLogged ? (
               <UserMenu email={email} initials={initials} />
             ) : (
-              <Link href="/login" className="font-semibold hover:text-zimba-gold transition-colors">Login</Link>
+              <OpenLoginButton className="font-semibold hover:text-zimba-gold transition-colors">
+                Login
+              </OpenLoginButton>
             )}
           </div>
         </div>
@@ -157,6 +161,10 @@ export default async function SiteHeader() {
           <MobileMenu isLogged={isLogged} />
         </div>
       </div>
+
+      {/* Modal de login público — só renderiza quando ?login=1 na URL.
+          Triggered por botões "Postar"/"Anunciar" via openLoginHref(). */}
+      <AuthModal />
     </header>
   );
 }

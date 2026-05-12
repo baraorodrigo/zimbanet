@@ -9,6 +9,7 @@ type IconName =
   | "share"
   | "user"
   | "mail"
+  | "phone"
   | "sun"
   | "instagram"
   | "facebook"
@@ -81,6 +82,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <rect x="2" y="4" width="20" height="16" rx="2" />
       <path d="m22 7-10 5L2 7" />
+    </>
+  ),
+  phone: (
+    <>
+      <rect x="7" y="2" width="10" height="20" rx="2" />
+      <line x1="11" y1="18" x2="13" y2="18" />
     </>
   ),
   sun: (

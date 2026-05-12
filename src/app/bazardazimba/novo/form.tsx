@@ -1,15 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 import { createBazarItem, type ActionResult } from "@/lib/actions/community";
 import { ImagePicker } from "@/components/image-picker";
 
 const tipos = [
-  { v: "Vende", desc: "Tem algo pra vender" },
-  { v: "Doa", desc: "Vai dar de graça" },
-  { v: "Troca", desc: "Quer trocar por outra coisa" },
-  { v: "Procura", desc: "Tá atrás de algo" },
+  { v: "Vende", desc: "Vender" },
+  { v: "Doa", desc: "Doar" },
+  { v: "Troca", desc: "Trocar" },
+  { v: "Procura", desc: "Procurar" },
 ] as const;
 
 const categorias = [
@@ -58,96 +59,172 @@ function PublishButton({ isLoggedIn }: { isLoggedIn: boolean }) {
   );
 }
 
+const labelCls = "text-fs-13 font-semibold text-navy mb-1.5 block";
+const inputCls =
+  "w-full h-12 rounded-md border border-border-subtle bg-white px-4 text-fs-15 text-navy placeholder:text-ink-400 focus:border-zimba-gold focus:outline-none";
+
 type Props = { isLoggedIn: boolean };
 
 export default function BazarNovoForm({ isLoggedIn }: Props) {
   const [state, formAction] = useFormState<State, FormData>(submit, null);
+  const [tipo, setTipo] = useState<(typeof tipos)[number]["v"]>("Vende");
   const errorMsg = state && state.ok === false ? state.error : null;
   const ok = state && state.ok === true;
   const pendingConfirm = ok && state.data?.status === "pending_confirmation";
   const publishedNow = ok && state.data?.status === "published";
 
   return (
-    <form action={formAction} className="space-y-8">
-      {/* Tipo */}
-      <fieldset>
-        <legend className="font-display font-bold text-fs-18 text-navy mb-3">
-          1. Você quer…
-        </legend>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {tipos.map((t, i) => (
+    <form action={formAction} className="space-y-6">
+      {/* Tipo — segmented pill */}
+      <div>
+        <span className={labelCls}>Quero…</span>
+        <div className="grid grid-cols-4 gap-2">
+          {tipos.map((t) => (
             <label
               key={t.v}
-              className="cursor-pointer border rounded-md p-4 transition-colors border-border-subtle bg-white hover:border-navy has-[:checked]:border-navy has-[:checked]:bg-navy has-[:checked]:text-off-white"
+              className={`cursor-pointer text-center rounded-md border px-2 h-12 inline-flex items-center justify-center text-fs-14 font-bold transition-colors ${
+                tipo === t.v
+                  ? "border-navy bg-navy text-off-white"
+                  : "border-border-subtle bg-white text-navy hover:border-navy"
+              }`}
             >
               <input
                 type="radio"
                 name="type"
                 value={t.v}
-                defaultChecked={i === 0}
+                checked={tipo === t.v}
+                onChange={() => setTipo(t.v)}
                 className="sr-only"
                 required
               />
-              <div className="font-display font-black text-fs-18">{t.v}</div>
-              <div className="text-fs-12 mt-1 text-ink-500 group-has-[:checked]:text-off-white/70">
-                {t.desc}
-              </div>
+              {t.desc}
             </label>
           ))}
         </div>
-      </fieldset>
+      </div>
 
-      {/* Título + descrição */}
-      <fieldset>
-        <legend className="font-display font-bold text-fs-18 text-navy mb-3">
-          2. O que é?
-        </legend>
-        <div className="space-y-3">
-          <label className="block">
-            <span className="text-fs-13 font-semibold text-navy mb-1.5 block">
-              Título do anúncio
-            </span>
-            <input
-              type="text"
-              name="title"
-              required
-              minLength={3}
-              maxLength={120}
-              placeholder="Ex.: Bicicleta aro 26 azul, semi-nova"
-              className="w-full h-12 rounded-md border border-border-subtle bg-white px-4 text-fs-15 text-navy placeholder:text-ink-400 focus:border-zimba-gold focus:outline-none"
-            />
-          </label>
-          <label className="block">
-            <span className="text-fs-13 font-semibold text-navy mb-1.5 block">
-              Descrição
-            </span>
-            <textarea
-              name="description"
-              required
-              minLength={10}
-              maxLength={2000}
-              rows={4}
-              placeholder="Estado de conservação, motivo da venda, condições de retirada…"
-              className="w-full rounded-md border border-border-subtle bg-white p-4 text-fs-15 text-navy placeholder:text-ink-400 focus:border-zimba-gold focus:outline-none resize-none"
-            />
-          </label>
+      {/* Título */}
+      <label className="block">
+        <span className={labelCls}>Título</span>
+        <input
+          type="text"
+          name="title"
+          required
+          minLength={3}
+          maxLength={120}
+          placeholder="Ex.: Bicicleta aro 26 azul, semi-nova"
+          className={inputCls}
+        />
+      </label>
+
+      {/* Preço + Bairro + WhatsApp */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <label className={tipo === "Vende" ? "block" : "block opacity-60"}>
+          <span className={labelCls}>
+            Preço{" "}
+            {tipo !== "Vende" && (
+              <span className="text-ink-400 font-normal">(opcional)</span>
+            )}
+          </span>
+          <input
+            type="text"
+            name="price"
+            placeholder={tipo === "Vende" ? "R$ 350" : "—"}
+            disabled={tipo !== "Vende"}
+            className={inputCls}
+          />
+        </label>
+        <label className="block">
+          <span className={labelCls}>Bairro</span>
+          <select
+            name="bairro"
+            required
+            defaultValue=""
+            className={inputCls}
+          >
+            <option value="" disabled>
+              Selecione…
+            </option>
+            {bairros.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className={labelCls}>WhatsApp</span>
+          <input
+            type="tel"
+            name="whatsapp"
+            required
+            autoComplete="tel"
+            placeholder="(48) 99999-9999"
+            className={inputCls}
+          />
+        </label>
+      </div>
+
+      {/* Foto + descrição lado a lado em desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
+        <div className="rounded-md border border-border-subtle bg-white p-3">
+          <ImagePicker
+            name="photo_url"
+            scope="bazar"
+            label="Foto"
+            hint="Anúncios com foto vendem 3x mais."
+            aspect="square"
+          />
         </div>
-      </fieldset>
+        <label className="block">
+          <span className={labelCls}>Descrição</span>
+          <textarea
+            name="description"
+            required
+            minLength={10}
+            maxLength={2000}
+            rows={6}
+            placeholder="Estado de conservação, motivo da venda, condições de retirada…"
+            className="w-full rounded-md border border-border-subtle bg-white p-4 text-fs-15 text-navy placeholder:text-ink-400 focus:border-zimba-gold focus:outline-none resize-none h-[152px] lg:h-full"
+          />
+        </label>
+      </div>
 
-      {/* Categoria + bairro */}
-      <fieldset>
-        <legend className="font-display font-bold text-fs-18 text-navy mb-3">
-          3. Onde encaixa?
-        </legend>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label className="block">
-            <span className="text-fs-13 font-semibold text-navy mb-1.5 block">
-              Categoria
+      {/* Email pra guest — visível só pra não-logado */}
+      {!isLoggedIn && (
+        <label className="block">
+          <span className={labelCls}>
+            Seu email{" "}
+            <span className="text-ink-400 font-normal">
+              (mandamos link pra confirmar)
             </span>
+          </span>
+          <input
+            type="email"
+            name="email"
+            required
+            autoComplete="email"
+            placeholder="voce@email.com"
+            className={inputCls}
+          />
+        </label>
+      )}
+
+      {/* Avançado: categoria */}
+      <details className="group border-t border-border-subtle pt-4">
+        <summary className="cursor-pointer list-none flex items-center justify-between text-[11px] uppercase tracking-[0.22em] font-bold text-navy/70 hover:text-navy">
+          <span>Mais opções</span>
+          <span className="text-navy/40 group-open:rotate-180 transition-transform">
+            ▾
+          </span>
+        </summary>
+        <div className="pt-4">
+          <label className="block max-w-sm">
+            <span className={labelCls}>Categoria</span>
             <select
               name="category"
               defaultValue=""
-              className="w-full h-12 rounded-md border border-border-subtle bg-white px-3 text-fs-15 text-navy focus:border-zimba-gold focus:outline-none"
+              className={inputCls}
             >
               <option value="">Sem categoria</option>
               {categorias.map((c) => (
@@ -157,103 +234,8 @@ export default function BazarNovoForm({ isLoggedIn }: Props) {
               ))}
             </select>
           </label>
-          <label className="block">
-            <span className="text-fs-13 font-semibold text-navy mb-1.5 block">
-              Bairro
-            </span>
-            <select
-              name="bairro"
-              required
-              defaultValue=""
-              className="w-full h-12 rounded-md border border-border-subtle bg-white px-3 text-fs-15 text-navy focus:border-zimba-gold focus:outline-none"
-            >
-              <option value="" disabled>
-                Selecione…
-              </option>
-              {bairros.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
-          </label>
         </div>
-      </fieldset>
-
-      {/* Foto do item */}
-      <fieldset>
-        <legend className="font-display font-bold text-fs-18 text-navy mb-3">
-          4. Tem foto?
-        </legend>
-        <div className="rounded-md border border-border-subtle bg-white p-4">
-          <ImagePicker
-            name="photo_url"
-            scope="bazar"
-            label="Foto do anúncio"
-            hint="Anúncios com foto vendem 3x mais. Solte um arquivo, escolha do disco ou cole uma URL."
-            aspect="square"
-          />
-        </div>
-      </fieldset>
-
-      {/* Preço + WhatsApp */}
-      <fieldset>
-        <legend className="font-display font-bold text-fs-18 text-navy mb-3">
-          5. Quanto e como te chamam?
-        </legend>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label className="block">
-            <span className="text-fs-13 font-semibold text-navy mb-1.5 block">
-              Preço (só pra &ldquo;Vende&rdquo;)
-            </span>
-            <input
-              type="text"
-              name="price"
-              placeholder="R$ 350"
-              className="w-full h-12 rounded-md border border-border-subtle bg-white px-4 text-fs-15 text-navy placeholder:text-ink-400 focus:border-zimba-gold focus:outline-none"
-            />
-          </label>
-          <label className="block">
-            <span className="text-fs-13 font-semibold text-navy mb-1.5 block">
-              WhatsApp (com DDD)
-            </span>
-            <input
-              type="tel"
-              name="whatsapp"
-              required
-              placeholder="(48) 99999-9999"
-              className="w-full h-12 rounded-md border border-border-subtle bg-white px-4 text-fs-15 text-navy placeholder:text-ink-400 focus:border-zimba-gold focus:outline-none"
-            />
-          </label>
-        </div>
-      </fieldset>
-
-      {/* Email só pra guest */}
-      {!isLoggedIn && (
-        <fieldset>
-          <legend className="font-display font-bold text-fs-18 text-navy mb-3">
-            6. Seu email pra confirmar
-          </legend>
-          <label className="block">
-            <span className="text-fs-13 font-semibold text-navy mb-1.5 block">
-              Email
-            </span>
-            <input
-              type="email"
-              name="email"
-              required
-              autoComplete="email"
-              placeholder="voce@email.com"
-              className="w-full h-12 rounded-md border border-border-subtle bg-white px-4 text-fs-15 text-navy placeholder:text-ink-400 focus:border-zimba-gold focus:outline-none"
-            />
-          </label>
-          <p className="mt-2 text-fs-12 text-ink-500 leading-relaxed max-w-[60ch]">
-            Sem cadastro chato. Mandamos um link pro seu email — clica nele e o
-            anúncio vai pro ar. Da próxima vez você nem precisa confirmar de
-            novo.
-          </p>
-        </fieldset>
-      )}
+      </details>
 
       {errorMsg && (
         <div className="rounded-md border border-alert-red bg-alert-red/5 p-4 text-fs-14 text-alert-red">
@@ -281,7 +263,6 @@ export default function BazarNovoForm({ isLoggedIn }: Props) {
         </div>
       )}
 
-      {/* Submit */}
       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border-subtle">
         <PublishButton isLoggedIn={isLoggedIn} />
         <Link
@@ -293,9 +274,9 @@ export default function BazarNovoForm({ isLoggedIn }: Props) {
       </div>
 
       <p className="text-fs-12 text-ink-500 leading-relaxed max-w-[60ch]">
-        Ao publicar você concorda em ser contatado por interessados e em
-        retirar o anúncio quando o item for vendido. ZIMBANET pode remover
-        anúncios fora das regras da comunidade.
+        <strong className="text-alert-red">Cuidado com golpes:</strong> combine
+        sempre em pessoa, em local público. Nunca pague antes de ver o item.
+        ZIMBANET não intermedia negociações.
       </p>
     </form>
   );

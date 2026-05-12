@@ -3,8 +3,11 @@ import Link from "next/link";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 import Icon from "@/components/icon";
+import OpenLoginButton from "@/components/open-login-button";
+import ScamWarning from "@/components/scam-warning";
 import { type BazarItem } from "@/lib/mock-data";
 import { getBazarItemsWithFallback } from "@/lib/db/community";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +60,12 @@ export default async function BazarDaZimbaPage({
 }: {
   searchParams: { type?: string; cat?: string; q?: string };
 }) {
-  const { items: source, source: dataSource } = await getBazarItemsWithFallback(60);
+  const supabase = createClient();
+  const [{ items: source, source: dataSource }, { data: { user } }] = await Promise.all([
+    getBazarItemsWithFallback(60),
+    supabase.auth.getUser(),
+  ]);
+  const isLogged = !!user;
   const baseItems =
     dataSource === "supabase" ? source : [...source, ...source, ...source].slice(0, 36);
 
@@ -115,12 +123,21 @@ export default async function BazarDaZimbaPage({
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 lg:justify-end">
-              <Link
-                href="/bazardazimba/novo"
-                className="bg-zimba-gold text-navy text-[11px] uppercase tracking-[0.28em] font-bold px-7 h-12 inline-flex items-center justify-center hover:bg-navy hover:text-zimba-gold transition-colors"
-              >
-                Anunciar grátis
-              </Link>
+              {isLogged ? (
+                <Link
+                  href="/bazardazimba/novo"
+                  className="bg-zimba-gold text-navy text-[11px] uppercase tracking-[0.28em] font-bold px-7 h-12 inline-flex items-center justify-center hover:bg-navy hover:text-zimba-gold transition-colors"
+                >
+                  Anunciar grátis
+                </Link>
+              ) : (
+                <OpenLoginButton
+                  next="/bazardazimba/novo"
+                  className="bg-zimba-gold text-navy text-[11px] uppercase tracking-[0.28em] font-bold px-7 h-12 inline-flex items-center justify-center hover:bg-navy hover:text-zimba-gold transition-colors"
+                >
+                  Anunciar grátis
+                </OpenLoginButton>
+              )}
               <a
                 href="https://wa.me/5548999999999"
                 className="border border-navy text-navy text-[11px] uppercase tracking-[0.28em] font-bold px-7 h-12 inline-flex items-center justify-center gap-2 hover:bg-navy hover:text-off-white transition-colors"
@@ -246,18 +263,11 @@ export default async function BazarDaZimbaPage({
               </ol>
             </div>
 
-            <div className="rounded-md bg-eco-green text-off-white p-5 mt-6">
-              <div className="text-[10px] uppercase tracking-[0.28em] font-bold mb-2 opacity-80">
-                Aviso da redação
-              </div>
-              <p className="font-display text-fs-16 leading-snug">
-                Bazar gratuito é um serviço comunitário. ZIMBANET não cobra,
-                não intermedia, não garante negociação.
-              </p>
-            </div>
+            <ScamWarning className="mt-6" />
           </aside>
 
           <div className="min-w-0">
+            <ScamWarning variant="compact" className="mb-4 lg:hidden" />
             {items.length === 0 ? (
               <div className="border border-border-subtle bg-white p-10 text-center">
                 <p className="font-display text-fs-20 text-navy/70 mb-2">

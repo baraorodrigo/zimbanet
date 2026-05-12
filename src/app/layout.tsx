@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import CookieBanner from "@/components/cookie-banner";
+import PostFab from "@/components/post-fab";
 
 const PLAUSIBLE_DOMAIN = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
 const PLAUSIBLE_SRC =
@@ -87,6 +88,7 @@ export default function RootLayout({
         <div id="conteudo" tabIndex={-1} className="outline-none">
           {children}
         </div>
+        <PostFab />
         <CookieBanner />
       </body>
     </html>

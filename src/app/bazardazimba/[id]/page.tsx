@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 import Icon from "@/components/icon";
+import ScamWarning from "@/components/scam-warning";
 import { fetchBazarItemById } from "@/lib/db/community";
 import { bazarItems, type BazarItem } from "@/lib/mock-data";
 
@@ -184,11 +185,7 @@ export default async function BazarDetailPage({
               </Link>
             </div>
 
-            <p className="mt-6 text-fs-12 text-ink-500 leading-relaxed">
-              ZIMBANET é apenas o mural. Confira o produto presencialmente, não
-              transfira dinheiro antes da entrega e desconfie de preços fora da
-              média. Negocie com calma.
-            </p>
+            <ScamWarning className="mt-6" />
           </div>
         </div>
       </main>

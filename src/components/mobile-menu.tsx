@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Icon from "./icon";
+import OpenLoginButton from "./open-login-button";
 
 const editorias = [
   { label: "Cidade", href: "/cidade" },
@@ -162,20 +163,19 @@ export default function MobileMenu({ isLogged }: Props) {
             <div className="border-t border-white/10 pt-5">
               {isLogged ? (
                 <Link
-                  href="/admin"
+                  href="/minha-conta"
                   onClick={() => setOpen(false)}
                   className="block w-full text-center bg-zimba-gold text-navy text-[11px] uppercase tracking-[0.22em] font-bold px-5 py-3 rounded-sm hover:bg-off-white transition-colors"
                 >
-                  Painel
+                  Minha conta
                 </Link>
               ) : (
-                <Link
-                  href="/login"
+                <OpenLoginButton
                   onClick={() => setOpen(false)}
                   className="block w-full text-center bg-zimba-gold text-navy text-[11px] uppercase tracking-[0.22em] font-bold px-5 py-3 rounded-sm hover:bg-off-white transition-colors"
                 >
                   Entrar
-                </Link>
+                </OpenLoginButton>
               )}
               <div className="mt-4 flex items-center justify-center gap-5 text-off-white/70">
                 <a
