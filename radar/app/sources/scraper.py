@@ -19,6 +19,7 @@ from bs4 import BeautifulSoup, Tag
 from app.db.types import Source
 from app.logging import get_logger
 from app.sources.dedup import content_hash, make_raw_id, semantic_hash
+from app.sources.video import extract_video_url
 
 log = get_logger("sources.scraper")
 
@@ -108,6 +109,7 @@ def collect_scraper(source: Source) -> list[dict[str, Any]]:
 
     items: list[dict[str, Any]] = []
     img_hits = 0
+    vid_hits = 0
     for tag in link_tags:
         href = tag.get("href")
         if not href:
@@ -139,6 +141,9 @@ def collect_scraper(source: Source) -> list[dict[str, Any]]:
         image_url = _extract_image(a_soup, article_url, sel_image)
         if image_url:
             img_hits += 1
+        video_url = extract_video_url(a_soup)
+        if video_url:
+            vid_hits += 1
 
         ch = content_hash(article_url, title)
         sh = semantic_hash(title, body)
@@ -150,10 +155,17 @@ def collect_scraper(source: Source) -> list[dict[str, Any]]:
                 "body": body,
                 "url": article_url,
                 "image_url": image_url,
+                "video_url": video_url,
                 "content_hash": ch,
                 "semantic_hash": sh,
             }
         )
 
-    log.info("scraper_collected", source_id=source.id, count=len(items), img_hits=img_hits)
+    log.info(
+        "scraper_collected",
+        source_id=source.id,
+        count=len(items),
+        img_hits=img_hits,
+        vid_hits=vid_hits,
+    )
     return items

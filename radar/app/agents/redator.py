@@ -220,6 +220,7 @@ def _persist_article(
         "hero_image_url": raw.image_url,
         "hero_image_credit": raw.source_id,
         "hero_image_alt": output.hero_image_alt,
+        "video_url": raw.video_url,
         "tags": output.tags,
         "cities": output.cities,
         "is_breaking": output.is_breaking,

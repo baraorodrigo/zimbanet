@@ -26,6 +26,7 @@ type ScoredJoined = {
     body: string | null;
     url: string;
     image_url: string | null;
+    video_url: string | null;
     published_at: string | null;
     source_id: string;
     sources: { id: string; name: string; priority: string } | null;
@@ -108,7 +109,7 @@ export default async function PautaPage({
       `id, raw_item_id, relevance_score, virality_score, risk_score,
        risk_flags, editoria, decision, ai_reasoning, scored_at,
        raw_items (
-         id, title, body, url, image_url, published_at, source_id,
+         id, title, body, url, image_url, video_url, published_at, source_id,
          sources ( id, name, priority )
        )`,
     )
@@ -270,6 +271,7 @@ function PautaCard({
 
   const flags = scored.risk_flags ?? [];
   const hasThumb = !!r.image_url;
+  const hasVideo = !!r.video_url;
   const hasInProgressDraft = linked && IN_PROGRESS_STATUSES.includes(linked.status);
 
   return (
@@ -305,6 +307,16 @@ function PautaCard({
             </p>
           </div>
         )}
+        {hasVideo && (
+          <span
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            aria-hidden
+          >
+            <span className="flex items-center justify-center w-10 h-10 rounded-full bg-navy/85 text-zimba-gold text-fs-15 shadow-z-1">
+              ▶
+            </span>
+          </span>
+        )}
       </a>
 
       <div className="min-w-0">
@@ -313,6 +325,14 @@ function PautaCard({
             {editoriaLabel}
           </span>
           <DecisionPill decision={scored.decision} />
+          {hasVideo && (
+            <span
+              className="text-[10px] uppercase tracking-[0.18em] font-bold rounded px-2 py-0.5 bg-alert-red/10 text-alert-red"
+              title="A fonte original tem vídeo embedado (YT/IG/TT) — vai vir junto na matéria"
+            >
+              ▶ vídeo
+            </span>
+          )}
           {hasInProgressDraft && linked && <DraftLinkPill linked={linked} />}
           <span className="text-fs-12 text-ink-400">
             {sourceName}

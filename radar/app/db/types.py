@@ -77,6 +77,7 @@ class RawItem(_Base):
     body: str | None = None
     url: str
     image_url: str | None = None
+    video_url: str | None = None
     published_at: datetime | None = None
     raw_html: str | None = None
     fetched_at: datetime | None = None

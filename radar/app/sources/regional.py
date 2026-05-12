@@ -34,6 +34,7 @@ from bs4 import BeautifulSoup, Tag
 from app.db.types import Source
 from app.logging import get_logger
 from app.sources.dedup import content_hash, make_raw_id, semantic_hash
+from app.sources.video import extract_video_url
 
 log = get_logger("sources.regional")
 
@@ -73,6 +74,7 @@ class Article:
     body: str | None
     image_url: str | None
     published_at: datetime | None
+    video_url: str | None = None
 
 
 # ============================================================================
@@ -229,6 +231,9 @@ def _parse_ahora_article(html: str, url: str) -> Article | None:
     )
     if not title:
         return None
+    # Detecta vídeo ANTES de decomposar iframes do body — senão os YT
+    # embeds somem do soup e a extração vira sempre None.
+    video_url = extract_video_url(soup)
     body_tag = soup.select_one(
         '[data-widget_type="theme-post-content.default"] .elementor-widget-container'
     )
@@ -240,7 +245,12 @@ def _parse_ahora_article(html: str, url: str) -> Article | None:
     published_at = extract_jsonld_date(soup) or extract_meta_date(soup)
     image_url = extract_og_image(soup)
     return Article(
-        url=url, title=title[:500], body=body, image_url=image_url, published_at=published_at
+        url=url,
+        title=title[:500],
+        body=body,
+        image_url=image_url,
+        published_at=published_at,
+        video_url=video_url,
     )
 
 
@@ -345,6 +355,8 @@ def _parse_clicksul_article(html: str, url: str) -> Article | None:
     )
     if not title:
         return None
+    # Detecta vídeo ANTES de decomposar iframes — mesmo motivo do Ahora.
+    video_url = extract_video_url(soup)
     body_tag = soup.select_one(".post-content")
     body: str | None = None
     if isinstance(body_tag, Tag):
@@ -354,7 +366,12 @@ def _parse_clicksul_article(html: str, url: str) -> Article | None:
     published_at = extract_meta_date(soup) or extract_jsonld_date(soup)
     image_url = extract_og_image(soup)
     return Article(
-        url=url, title=title[:500], body=body, image_url=image_url, published_at=published_at
+        url=url,
+        title=title[:500],
+        body=body,
+        image_url=image_url,
+        published_at=published_at,
+        video_url=video_url,
     )
 
 
@@ -399,6 +416,7 @@ def _articles_to_items(source_id: str, articles: list[Article]) -> list[dict[str
                 "body": a.body,
                 "url": a.url,
                 "image_url": a.image_url,
+                "video_url": a.video_url,
                 "published_at": a.published_at.isoformat() if a.published_at else None,
                 "content_hash": ch,
                 "semantic_hash": sh,

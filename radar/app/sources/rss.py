@@ -24,6 +24,7 @@ from bs4 import BeautifulSoup, Tag
 from app.db.types import Source
 from app.logging import get_logger
 from app.sources.dedup import content_hash, make_raw_id, semantic_hash
+from app.sources.video import extract_video_url
 
 log = get_logger("sources.rss")
 
@@ -86,10 +87,12 @@ def _from_content_field(entry: Any) -> str | None:
     return None
 
 
-def _from_og_image(link: str) -> str | None:
-    """Última tentativa: GET na página + parse og:image. Cara, então só
-    quando todos os outros caminhos falharam. Timeout curto pra não
-    bloquear o pipeline em sites lentos."""
+def _fetch_page_soup(link: str) -> BeautifulSoup | None:
+    """GET na página com timeout curto + guard de content-type.
+
+    Compartilhado por og:image e extract_video_url — antes a gente
+    fazia 1 fetch só pra imagem; agora o mesmo HTML alimenta os dois.
+    """
     try:
         with httpx.Client(
             timeout=_OG_FETCH_TIMEOUT,
@@ -104,26 +107,39 @@ def _from_og_image(link: str) -> str | None:
         ctype = (resp.headers.get("content-type") or "").lower()
         if "html" not in ctype:
             return None
-        soup = BeautifulSoup(resp.text, "lxml")
-        for prop in ("og:image", "og:image:secure_url", "twitter:image"):
-            tag = soup.find("meta", attrs={"property": prop}) or soup.find(
-                "meta", attrs={"name": prop}
-            )
-            if not isinstance(tag, Tag):
-                continue
-            content_attr = tag.get("content")
-            # BS4 pode retornar AttributeValueList (multi-value); meta content
-            # é sempre single-value, mas o type-check exige isinstance(str).
-            if isinstance(content_attr, str):
-                url = content_attr.strip()
-                if url:
-                    return url
+        return BeautifulSoup(resp.text, "lxml")
     # Catch largo: lxml pode lançar ParserError, charset errors podem dar
-    # UnicodeDecodeError, sites podem mandar payload bizarro. og_image é
-    # best-effort — se quebrar, a matéria nasce sem foto, não dá crash.
+    # UnicodeDecodeError, sites podem mandar payload bizarro. é best-effort.
     except Exception as exc:  # noqa: BLE001
-        log.debug("og_image_fetch_failed", url=link, error=str(exc))
+        log.debug("og_page_fetch_failed", url=link, error=str(exc))
     return None
+
+
+def _og_image_from_soup(soup: BeautifulSoup) -> str | None:
+    for prop in ("og:image", "og:image:secure_url", "twitter:image"):
+        tag = soup.find("meta", attrs={"property": prop}) or soup.find(
+            "meta", attrs={"name": prop}
+        )
+        if not isinstance(tag, Tag):
+            continue
+        content_attr = tag.get("content")
+        # BS4 pode retornar AttributeValueList (multi-value); meta content
+        # é sempre single-value, mas o type-check exige isinstance(str).
+        if isinstance(content_attr, str):
+            url = content_attr.strip()
+            if url:
+                return url
+    return None
+
+
+def _from_og_image(link: str) -> str | None:
+    """Última tentativa: GET na página + parse og:image. Cara, então só
+    quando todos os outros caminhos falharam. Timeout curto pra não
+    bloquear o pipeline em sites lentos."""
+    soup = _fetch_page_soup(link)
+    if soup is None:
+        return None
+    return _og_image_from_soup(soup)
 
 
 def _extract_image_url(entry: Any, link: str, *, scrape_og: bool) -> str | None:
@@ -171,6 +187,7 @@ def collect_rss(source: Source) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     og_scrapes = 0
     img_hits = 0
+    vid_hits = 0
     for entry in parsed.entries[:50]:
         title = (entry.get("title") or "").strip()
         link = (entry.get("link") or "").strip()
@@ -185,11 +202,21 @@ def collect_rss(source: Source) -> list[dict[str, Any]]:
 
         # Tenta cheap paths primeiro; só conta og scrape se chegou nele.
         image_url = _extract_image_url(entry, link, scrape_og=False)
+        video_url: str | None = None
+        # Quando precisamos abrir a página (pra og:image), aproveitamos pra
+        # extrair vídeo também — só 1 GET. Se já temos imagem do feed, ainda
+        # vale buscar vídeo? Não — o custo de vídeo só compensa quando o
+        # fetch já vai acontecer; senão mantemos o pipeline barato.
         if not image_url and scrape_og:
-            image_url = _from_og_image(link)
+            soup = _fetch_page_soup(link)
             og_scrapes += 1
+            if soup is not None:
+                image_url = _og_image_from_soup(soup)
+                video_url = extract_video_url(soup)
         if image_url:
             img_hits += 1
+        if video_url:
+            vid_hits += 1
 
         items.append(
             {
@@ -199,6 +226,7 @@ def collect_rss(source: Source) -> list[dict[str, Any]]:
                 "body": summary[:5000] if summary else None,
                 "url": link,
                 "image_url": image_url,
+                "video_url": video_url,
                 "published_at": published_at.isoformat() if published_at else None,
                 "content_hash": ch,
                 "semantic_hash": sh,
@@ -209,6 +237,7 @@ def collect_rss(source: Source) -> list[dict[str, Any]]:
         source_id=source.id,
         count=len(items),
         img_hits=img_hits,
+        vid_hits=vid_hits,
         og_scrapes=og_scrapes,
     )
     return items
