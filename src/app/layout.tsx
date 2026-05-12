@@ -69,7 +69,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR" className={inter.variable}>
-      <head>
+      <body>
         {PLAUSIBLE_DOMAIN && (
           <Script
             defer
@@ -78,8 +78,6 @@ export default function RootLayout({
             strategy="afterInteractive"
           />
         )}
-      </head>
-      <body>
         <a
           href="#conteudo"
           className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-zimba-gold focus:text-navy focus:px-4 focus:py-2 focus:font-bold focus:text-sm focus:rounded-xs focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-navy"
