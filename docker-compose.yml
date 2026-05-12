@@ -29,6 +29,10 @@ services:
     restart: unless-stopped
     env_file:
       - .env.production
+    # Chromium (Puppeteer) precisa de syscalls que o seccomp default do Docker
+    # bloqueia em containers LXC. Unconfined libera clone3 etc.
+    security_opt:
+      - seccomp:unconfined
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=zimbanet_default"
