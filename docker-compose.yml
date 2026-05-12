@@ -1,0 +1,50 @@
+# Compose pra rodar o portal na VPS, atrás do Traefik que já tá rodando lá.
+#
+# Antes do primeiro deploy, descobrir o nome da network do Traefik na VPS:
+#   docker network ls | grep -i traefik
+# E ajustar o `name:` do external network abaixo se for diferente.
+#
+# O arquivo .env.production na mesma pasta supre tanto build args (NEXT_PUBLIC_*)
+# quanto runtime env (chaves privadas).
+
+services:
+  portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY:-}
+        NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${NEXT_PUBLIC_PLAUSIBLE_DOMAIN:-}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+    image: zimbanet-portal:latest
+    container_name: zimbanet-portal
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+
+      # HTTP → redireciona pra HTTPS
+      - "traefik.http.routers.zimbanet.rule=Host(`teste.zimbanet.com`)"
+      - "traefik.http.routers.zimbanet.entrypoints=web"
+      - "traefik.http.routers.zimbanet.middlewares=zimbanet-https-redirect"
+      - "traefik.http.middlewares.zimbanet-https-redirect.redirectscheme.scheme=https"
+
+      # HTTPS — Let's Encrypt
+      - "traefik.http.routers.zimbanet-secure.rule=Host(`teste.zimbanet.com`)"
+      - "traefik.http.routers.zimbanet-secure.entrypoints=websecure"
+      - "traefik.http.routers.zimbanet-secure.tls=true"
+      - "traefik.http.routers.zimbanet-secure.tls.certresolver=letsencrypt"
+
+      - "traefik.http.services.zimbanet.loadbalancer.server.port=3000"
+
+networks:
+  traefik:
+    external: true
+    name: traefik

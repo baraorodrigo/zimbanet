@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Gera um servidor mínimo (~150MB vs ~1GB) — necessário pro Docker.
+  output: "standalone",
   images: {
     // Allowlist explícito — evita que `next/image` vire proxy aberto pra
     // qualquer host (custo de banda + risco de abuso de cache). Para liberar
