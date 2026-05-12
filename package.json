@@ -3,17 +3,25 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3100",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start -p 3100",
+    "lint": "next lint",
+    "import-bombei-sources": "tsx scripts/import-bombei-sources.ts",
+    "sync-bombei": "tsx scripts/sync-bombei.ts"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.52.0",
+    "@sparticuz/chromium": "^131.0.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.4",
-    "next": "14.2.35",
+    "@types/web-push": "^3.6.4",
+    "next": "^14.2.35",
+    "puppeteer-core": "^24.43.0",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "rss-parser": "^3.13.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -22,7 +30,9 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "postcss": "^8",
+    "puppeteer": "^24.43.0",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

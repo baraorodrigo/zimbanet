@@ -1,0 +1,49 @@
+{
+  "name": "ZIMBANET — Imbituba conectada",
+  "short_name": "ZIMBANET",
+  "description": "Portal de notícias e comunidade regional de Imbituba, SC.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "pt-BR",
+  "background_color": "#F5F5F5",
+  "theme_color": "#0D1B2A",
+  "categories": ["news", "lifestyle", "social"],
+  "icons": [
+    {
+      "src": "/logos/avatar-instagram.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Cidade",
+      "short_name": "Cidade",
+      "url": "/cidade"
+    },
+    {
+      "name": "Polícia",
+      "short_name": "Polícia",
+      "url": "/policia"
+    },
+    {
+      "name": "Bazar da Zimba",
+      "short_name": "Bazar",
+      "url": "/bazardazimba"
+    },
+    {
+      "name": "Zimbamilgrau",
+      "short_name": "Mural",
+      "url": "/zimbamilgrau"
+    }
+  ]
+}
