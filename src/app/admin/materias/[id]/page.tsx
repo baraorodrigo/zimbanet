@@ -225,6 +225,7 @@ export default async function EditMateriaPage({ params }: { params: { id: string
           heroImageUrl={(data.hero_image_url as string | null) ?? null}
           heroImageAlt={(data.hero_image_alt as string | null) ?? null}
           heroImageCredit={(data.hero_image_credit as string | null) ?? null}
+          videoUrl={(data.video_url as string | null) ?? null}
           isBreaking={!!(data.is_breaking as boolean | null)}
           isExclusive={!!(data.is_exclusive as boolean | null)}
           publishedAt={(data.published_at as string | null) ?? null}

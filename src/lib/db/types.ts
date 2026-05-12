@@ -86,6 +86,7 @@ export type ArticleRow = {
   hero_image_url: string | null;
   hero_image_credit: string | null;
   hero_image_alt: string | null;
+  video_url: string | null;
   tags: string[];
   cities: string[];
   is_breaking: boolean;

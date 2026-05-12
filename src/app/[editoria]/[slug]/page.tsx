@@ -10,6 +10,7 @@ import Icon from "@/components/icon";
 import ArticleComments from "@/components/article-comments";
 import ShareButtons from "@/components/share-buttons";
 import ReadingProgress from "@/components/reading-progress";
+import VideoEmbed from "@/components/video-embed";
 import {
   EDITORIA_LABEL,
   EDITORIA_SLUGS,
@@ -112,6 +113,7 @@ export default async function ArticlePage({
   const heroImage = row?.hero_image_url ?? view.image;
   const heroAlt = row?.hero_image_alt ?? view.imageAlt ?? view.title;
   const credit = row?.hero_image_credit;
+  const videoUrl = row?.video_url ?? null;
   const lede = row?.lede ?? view.lede;
   const subtitle = row?.subtitle;
   const body = row?.body ?? "";
@@ -255,8 +257,19 @@ export default async function ArticlePage({
               </div>
             </header>
 
-            {/* Hero image */}
-            {heroImage && (
+            {/* Vídeo embedado tem prioridade visual — se a matéria tem vídeo,
+                ele aparece no lugar do hero (foto continua sendo usada como
+                thumb em cards e como OG image). Sem vídeo, mostra a foto. */}
+            {videoUrl ? (
+              <figure className="mb-8">
+                <VideoEmbed url={videoUrl} />
+                {credit && (
+                  <figcaption className="mt-2 font-sans text-fs-12 text-ink-500">
+                    {credit}
+                  </figcaption>
+                )}
+              </figure>
+            ) : heroImage ? (
               <figure className="mb-8">
                 <div className="relative aspect-[16/9] overflow-hidden rounded-md bg-ink-100">
                   <Image
@@ -274,7 +287,7 @@ export default async function ArticlePage({
                   </figcaption>
                 )}
               </figure>
-            )}
+            ) : null}
 
             {/* Body — teto de 68ch pra leitura confortável; em mobile a coluna
                 já é estreita então o max-w não interfere */}

@@ -86,6 +86,7 @@ export type ArticleInput = {
   hero_image_url?: string | null;
   hero_image_credit?: string | null;
   hero_image_alt?: string | null;
+  video_url?: string | null;
   tags: string[];
   cities: string[];
   is_breaking: boolean;
@@ -122,6 +123,7 @@ function parseInput(formData: FormData): ArticleInput | { error: string } {
     hero_image_url: field(formData, "hero_image_url") || null,
     hero_image_credit: field(formData, "hero_image_credit") || null,
     hero_image_alt: field(formData, "hero_image_alt") || null,
+    video_url: field(formData, "video_url") || null,
     tags: listField(formData, "tags"),
     cities: listField(formData, "cities"),
     is_breaking: field(formData, "is_breaking") === "on",
@@ -161,6 +163,7 @@ export async function createArticle(
       hero_image_url: parsed.hero_image_url,
       hero_image_credit: parsed.hero_image_credit,
       hero_image_alt: parsed.hero_image_alt,
+      video_url: parsed.video_url,
       tags: parsed.tags,
       cities: parsed.cities,
       is_breaking: parsed.is_breaking,
@@ -239,6 +242,7 @@ export async function updateArticle(
       hero_image_url: parsed.hero_image_url,
       hero_image_credit: parsed.hero_image_credit,
       hero_image_alt: parsed.hero_image_alt,
+      video_url: parsed.video_url,
       tags: parsed.tags,
       cities: parsed.cities,
       is_breaking: parsed.is_breaking,

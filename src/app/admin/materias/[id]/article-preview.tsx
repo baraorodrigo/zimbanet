@@ -12,6 +12,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import VideoEmbed from "@/components/video-embed";
 import { EDITORIA_LABEL, type EditoriaSlug } from "@/lib/db/types";
 
 type Props = {
@@ -26,6 +27,7 @@ type Props = {
   heroImageUrl: string | null;
   heroImageAlt: string | null;
   heroImageCredit: string | null;
+  videoUrl: string | null;
   isBreaking: boolean;
   isExclusive: boolean;
   publishedAt: string | null;
@@ -65,6 +67,7 @@ export function ArticlePreview({
   heroImageUrl,
   heroImageAlt,
   heroImageCredit,
+  videoUrl,
   isBreaking,
   isExclusive,
   publishedAt,
@@ -249,7 +252,16 @@ export function ArticlePreview({
               </div>
             </div>
 
-            {heroImageUrl ? (
+            {videoUrl ? (
+              <figure className="mb-6">
+                <VideoEmbed url={videoUrl} />
+                {heroImageCredit && (
+                  <figcaption className="mt-2 font-sans text-fs-11 text-ink-500">
+                    {heroImageCredit}
+                  </figcaption>
+                )}
+              </figure>
+            ) : heroImageUrl ? (
               <figure className="mb-6">
                 <div className="relative aspect-[16/9] overflow-hidden rounded-md bg-ink-100">
                   <Image

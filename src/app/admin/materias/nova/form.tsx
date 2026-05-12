@@ -177,6 +177,26 @@ export default function ArticleForm(props: Props) {
         </div>
       </Section>
 
+      {/* Vídeo — embed externo (YouTube/Instagram/TikTok). Aparece acima do
+          corpo da matéria, abaixo do hero. Sem upload — quem hospeda é a
+          plataforma original. */}
+      <Section title="Vídeo (opcional)">
+        <Field
+          label="URL do vídeo"
+          name="video_url"
+          hint="Cola o link público do YouTube, Reels do Instagram ou TikTok. Aceita também YouTube Shorts."
+        >
+          <input
+            type="url"
+            name="video_url"
+            defaultValue={v.video_url ?? ""}
+            maxLength={500}
+            className="input font-mono text-fs-13"
+            placeholder="https://www.youtube.com/watch?v=..."
+          />
+        </Field>
+      </Section>
+
       {/* Meta */}
       <Section title="Etiquetas e flags">
         <Field
