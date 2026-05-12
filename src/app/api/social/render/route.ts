@@ -20,10 +20,20 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// Em produção (Vercel/serverless) usamos @sparticuz/chromium + puppeteer-core
-// pra caber no limite de 50 MB. Em dev, caímos no puppeteer local (devDep) que
-// traz o Chromium próprio — assim ninguém precisa instalar nada extra.
+// Em prod (VPS) usamos o chromium do sistema (instalado via apt no Dockerfile)
+// apontado por PUPPETEER_EXECUTABLE_PATH. Fallback: @sparticuz/chromium quando
+// PUPPETEER_EXECUTABLE_PATH não tá setado (ex: Vercel/serverless). Em dev,
+// puppeteer (devDep) traz seu próprio Chromium.
 async function getBrowser(): Promise<Browser> {
+  const systemPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  if (systemPath) {
+    const puppeteer = await import("puppeteer-core");
+    return puppeteer.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+      executablePath: systemPath,
+      headless: true,
+    }) as unknown as Promise<Browser>;
+  }
   if (process.env.NODE_ENV === "production" || process.env.VERCEL === "1") {
     const chromium = (await import("@sparticuz/chromium")).default;
     const puppeteer = await import("puppeteer-core");

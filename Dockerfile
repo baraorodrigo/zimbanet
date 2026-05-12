@@ -47,31 +47,17 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Libs runtime do @sparticuz/chromium (headless chrome dentro do API route social/render)
+# Chromium do sistema pra Puppeteer em /api/social/render.
+# Em vez de @sparticuz/chromium (otimizado pra Lambda, não traceia bem no
+# output: standalone), instalamos o binário direto e apontamos via
+# PUPPETEER_EXECUTABLE_PATH no .env.production.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    chromium \
     fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcairo2 \
-    libcups2 \
-    libdbus-1-3 \
-    libdrm2 \
-    libgbm1 \
-    libglib2.0-0 \
-    libnspr4 \
-    libnss3 \
-    libpango-1.0-0 \
-    libx11-6 \
-    libxcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxkbcommon0 \
-    libxrandr2 \
     && rm -rf /var/lib/apt/lists/*
+
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 RUN groupadd --system --gid 1001 nodejs && \
     useradd --system --uid 1001 --gid nodejs nextjs
