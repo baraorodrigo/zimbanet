@@ -1,11 +1,16 @@
-# Compose pra rodar o portal na VPS, atrás do Traefik que já tá rodando lá.
+# Compose pro portal na VPS Hostinger (Traefik em network host na mesma máquina).
 #
-# Antes do primeiro deploy, descobrir o nome da network do Traefik na VPS:
-#   docker network ls | grep -i traefik
-# E ajustar o `name:` do external network abaixo se for diferente.
+# Traefik:
+#   - Roda em `network_mode: host` (escuta direto 80/443 do host)
+#   - Provider Docker com exposedbydefault=false
+#   - Redirect HTTP→HTTPS configurado globalmente (não precisa middleware aqui)
+#   - certresolver `letsencrypt` (ACME HTTP challenge via entrypoint `web`)
 #
-# O arquivo .env.production na mesma pasta supre tanto build args (NEXT_PUBLIC_*)
-# quanto runtime env (chaves privadas).
+# Como Traefik tá em host network, ele alcança qualquer container por bridge.
+# A network default do compose (zimbanet_default) basta — não precisa external.
+#
+# O arquivo .env.production na mesma pasta supre build args (NEXT_PUBLIC_*)
+# e runtime env (chaves privadas).
 
 services:
   portal:
@@ -24,27 +29,14 @@ services:
     restart: unless-stopped
     env_file:
       - .env.production
-    networks:
-      - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=traefik"
+      - "traefik.docker.network=zimbanet_default"
 
-      # HTTP → redireciona pra HTTPS
+      # HTTPS — Traefik faz o redirect HTTP→HTTPS automaticamente
       - "traefik.http.routers.zimbanet.rule=Host(`teste.zimbanet.com`)"
-      - "traefik.http.routers.zimbanet.entrypoints=web"
-      - "traefik.http.routers.zimbanet.middlewares=zimbanet-https-redirect"
-      - "traefik.http.middlewares.zimbanet-https-redirect.redirectscheme.scheme=https"
-
-      # HTTPS — Let's Encrypt
-      - "traefik.http.routers.zimbanet-secure.rule=Host(`teste.zimbanet.com`)"
-      - "traefik.http.routers.zimbanet-secure.entrypoints=websecure"
-      - "traefik.http.routers.zimbanet-secure.tls=true"
-      - "traefik.http.routers.zimbanet-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.zimbanet.entrypoints=websecure"
+      - "traefik.http.routers.zimbanet.tls=true"
+      - "traefik.http.routers.zimbanet.tls.certresolver=letsencrypt"
 
       - "traefik.http.services.zimbanet.loadbalancer.server.port=3000"
-
-networks:
-  traefik:
-    external: true
-    name: traefik
