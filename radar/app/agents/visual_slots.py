@@ -35,28 +35,38 @@ class VisualSlots(TypedDict):
 SUBJECT_MAX = 120
 SCENE_MAX = 160
 
-DEFAULT_BRAND_TONE = "navy/gold accents, off-white base, alta densidade editorial"
-DEFAULT_NEGATIVE = "sem texto, sem watermark, sem clipart, sem logos"
+DEFAULT_BRAND_TONE = (
+    "editorial flat illustration, navy #0D1B2A and gold #E8B100 accents, "
+    "off-white #F5F5F5 background, geometric shapes, limited palette, "
+    "no gradients, no 3D shading"
+)
+DEFAULT_NEGATIVE = (
+    "no photorealistic faces, no recognizable people, no real photographs, "
+    "no AI-generated photos, no stock photo aesthetic, no text, no logos, "
+    "no watermarks, no clipart, no neon, no gradients, no 3D render"
+)
 
 DEFAULT_SLOTS: VisualSlots = {
     "subject": "",
     "scene": "",
     "framing": "wide",
     "mood": "comunidade",
-    "style": "fotojornalismo",
+    "style": "ilustracao-editorial",
     "brand_tone": DEFAULT_BRAND_TONE,
     "negative": DEFAULT_NEGATIVE,
 }
 
-# Mesmo mapa de EDITORIA_DEFAULTS do TS — manter sincronizado.
+# Regra editorial: IA = ilustração, nunca foto. Mood varia por editoria,
+# style fica fixo em "ilustracao-editorial" em todas. Sincronizado com
+# visual-slots.ts do portal.
 EDITORIA_DEFAULTS: dict[str, dict[str, str]] = {
-    "policia": {"mood": "tenso", "style": "fotojornalismo"},
-    "cultura": {"mood": "vibrante", "style": "documental"},
-    "praias": {"mood": "calmo", "style": "fotojornalismo"},
-    "economia": {"mood": "comunidade", "style": "documental"},
-    "politica": {"mood": "comunidade", "style": "fotojornalismo"},
-    "esporte": {"mood": "celebrativo", "style": "fotojornalismo"},
-    "cidade": {"mood": "comunidade", "style": "documental"},
+    "policia": {"mood": "tenso", "style": "ilustracao-editorial"},
+    "cultura": {"mood": "vibrante", "style": "ilustracao-editorial"},
+    "praias": {"mood": "calmo", "style": "ilustracao-editorial"},
+    "economia": {"mood": "comunidade", "style": "ilustracao-editorial"},
+    "politica": {"mood": "comunidade", "style": "ilustracao-editorial"},
+    "esporte": {"mood": "celebrativo", "style": "ilustracao-editorial"},
+    "cidade": {"mood": "comunidade", "style": "ilustracao-editorial"},
     "opiniao": {"mood": "calmo", "style": "ilustracao-editorial"},
 }
 

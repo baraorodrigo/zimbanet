@@ -53,18 +53,26 @@ export const STYLE_OPTIONS: { value: VisualStyle; label: string }[] = [
   { value: "documental", label: "Documental" },
 ];
 
+// IA = ilustração, nunca foto. Em cidade pequena, IA fotorrealista mata
+// credibilidade. brand_tone e negative usam termos que o modelo de imagem
+// (SDXL/FLUX/DALL-E) entende — paleta com hex, formas geométricas, e bloqueio
+// explícito de fotorrealismo no negative.
 export const DEFAULT_BRAND_TONE =
-  "navy/gold accents, off-white base, alta densidade editorial";
+  "editorial flat illustration, navy #0D1B2A and gold #E8B100 accents, " +
+  "off-white #F5F5F5 background, geometric shapes, limited palette, " +
+  "no gradients, no 3D shading";
 
 export const DEFAULT_NEGATIVE =
-  "sem texto, sem watermark, sem clipart, sem logos";
+  "no photorealistic faces, no recognizable people, no real photographs, " +
+  "no AI-generated photos, no stock photo aesthetic, no text, no logos, " +
+  "no watermarks, no clipart, no neon, no gradients, no 3D render";
 
 export const DEFAULT_SLOTS: VisualSlots = {
   subject: "",
   scene: "",
   framing: "wide",
   mood: "comunidade",
-  style: "fotojornalismo",
+  style: "ilustracao-editorial",
   brand_tone: DEFAULT_BRAND_TONE,
   negative: DEFAULT_NEGATIVE,
 };
@@ -142,13 +150,13 @@ const EDITORIA_DEFAULTS: Record<
   string,
   { mood: VisualMood; style: VisualStyle }
 > = {
-  policia: { mood: "tenso", style: "fotojornalismo" },
-  cultura: { mood: "vibrante", style: "documental" },
-  praias: { mood: "calmo", style: "fotojornalismo" },
-  economia: { mood: "comunidade", style: "documental" },
-  politica: { mood: "comunidade", style: "fotojornalismo" },
-  esporte: { mood: "celebrativo", style: "fotojornalismo" },
-  cidade: { mood: "comunidade", style: "documental" },
+  policia: { mood: "tenso", style: "ilustracao-editorial" },
+  cultura: { mood: "vibrante", style: "ilustracao-editorial" },
+  praias: { mood: "calmo", style: "ilustracao-editorial" },
+  economia: { mood: "comunidade", style: "ilustracao-editorial" },
+  politica: { mood: "comunidade", style: "ilustracao-editorial" },
+  esporte: { mood: "celebrativo", style: "ilustracao-editorial" },
+  cidade: { mood: "comunidade", style: "ilustracao-editorial" },
   opiniao: { mood: "calmo", style: "ilustracao-editorial" },
 };
 
@@ -215,7 +223,11 @@ const MOOD_PROMPT: Record<VisualMood, string> = {
 
 const STYLE_PROMPT: Record<VisualStyle, string> = {
   fotojornalismo: "fotojornalismo direto, sem efeitos pesados, foco editorial",
-  "ilustracao-editorial": "ilustração editorial flat, traço limpo, paleta da marca",
+  "ilustracao-editorial":
+    "editorial flat illustration in the style of The New Yorker / Politico, " +
+    "clean linework, geometric shapes, limited palette of navy #0D1B2A, " +
+    "gold #E8B100 and off-white #F5F5F5, no photorealism, no recognizable " +
+    "faces, figures as silhouettes or abstract shapes",
   infografico: "infográfico minimalista, hierarquia clara, sem 3D",
   documental: "fotografia documental, cores reais, naturalidade",
 };
