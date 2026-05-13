@@ -20,17 +20,18 @@ async function radarFetch<T>(path: string, init?: RequestInit): Promise<T> {
       headers: { "content-type": "application/json" },
       ...init,
     });
+    const raw = await res.text();
     if (!res.ok) {
       let detail = "";
       try {
-        const body = (await res.json()) as RadarError;
+        const body = JSON.parse(raw) as RadarError;
         detail = body.detail ?? body.error ?? "";
       } catch {
-        detail = await res.text();
+        detail = raw;
       }
       throw new Error(`radar ${res.status}: ${detail || res.statusText}`);
     }
-    return (await res.json()) as T;
+    return JSON.parse(raw) as T;
   } finally {
     clearTimeout(t);
   }
