@@ -17,6 +17,7 @@ export type Article = {
   publishedAt: string;
   slug: string;
   isBreaking?: boolean;
+  videoUrl?: string;
 };
 
 export type MuralPost = {

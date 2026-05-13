@@ -18,6 +18,7 @@ function toViewArticle(row: ArticleRow): Article {
     publishedAt: relativeTime(row.published_at ?? row.created_at),
     slug: row.slug,
     isBreaking: row.is_breaking ?? false,
+    videoUrl: row.video_url ?? undefined,
   };
 }
 
@@ -270,6 +271,38 @@ export async function getLatestArticles(
     exclude: opts.exclude ?? [],
     since: opts.since,
   });
+}
+
+// Matérias publicadas que têm vídeo embarcado. Usado pelo hub de vídeo
+// na home. Tabela vazia / coluna inexistente → array vazio (seção oculta).
+export async function getLatestVideoArticles(
+  opts: { limit?: number; exclude?: string[] } = {},
+): Promise<Article[]> {
+  try {
+    const supabase = createClient();
+    const limit = opts.limit ?? 8;
+    let q = supabase
+      .from("articles")
+      .select("*")
+      .eq("status", "published")
+      .not("video_url", "is", null)
+      .order("published_at", { ascending: false })
+      .limit(limit);
+    if (opts.exclude?.length) q = q.not("id", "in", `(${opts.exclude.join(",")})`);
+    const { data, error } = await q;
+    if (error) {
+      if (error.code === "42P01" || error.code === "42703") return [];
+      console.warn("[getLatestVideoArticles]", error.message);
+      return [];
+    }
+    return (data ?? []).map((r) => toViewArticle(r as ArticleRow));
+  } catch (e) {
+    const msg = (e as Error).message;
+    if (!/Dynamic server usage|DYNAMIC_SERVER_USAGE/i.test(msg)) {
+      console.warn("[getLatestVideoArticles] fetch failed", msg);
+    }
+    return [];
+  }
 }
 
 // Meia-noite de hoje no fuso de Imbituba (America/Sao_Paulo). Usado pra

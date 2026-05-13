@@ -9,7 +9,13 @@ import Sidebar from "@/components/sidebar";
 import ZimbaMilGrauWidget from "@/components/zimbamilgrau-widget";
 import BazarDaZimbaWidget from "@/components/bazardazimba-widget";
 import SiteFooter from "@/components/site-footer";
-import { getHomepageData, getLatestArticles, startOfTodayInBrazil } from "@/lib/db/articles";
+import VideoHubSection from "@/components/video-hub-section";
+import {
+  getHomepageData,
+  getLatestArticles,
+  getLatestVideoArticles,
+  startOfTodayInBrazil,
+} from "@/lib/db/articles";
 import { getActiveTickerMessages } from "@/lib/db/ticker";
 import { slugFromLabel } from "@/lib/db/types";
 import type { TickerItem } from "@/components/breaking-bar";
@@ -32,13 +38,14 @@ export default async function Home() {
   // Ticker: mensagens curadas no /admin/ticker têm prioridade. Sem nenhuma
   // ativa, cai automático nas manchetes publicadas HOJE (fuso BR).
   const tickerExclude = heroMain ? [heroMain.id] : [];
-  const [manualTicker, todaysHeadlines] = await Promise.all([
+  const [manualTicker, todaysHeadlines, videoArticles] = await Promise.all([
     getActiveTickerMessages(),
     getLatestArticles({
       limit: 12,
       exclude: tickerExclude,
       since: startOfTodayInBrazil(),
     }),
+    getLatestVideoArticles({ limit: 8 }),
   ]);
   const tickerItems: TickerItem[] = manualTicker.length > 0
     ? manualTicker.map((m) => ({
@@ -69,6 +76,8 @@ export default async function Home() {
             )}
 
             {ultimaPool.length > 0 && <UltimaHora items={ultimaPool} />}
+
+            <VideoHubSection articles={videoArticles} />
 
             {articlesCidade.length > 0 && (
               <section>
