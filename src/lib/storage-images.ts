@@ -21,6 +21,13 @@ function extFromContentType(ct: string | null): string {
   return "jpg";
 }
 
+function videoExtFromContentType(ct: string | null): string {
+  if (!ct) return "mp4";
+  if (ct.includes("webm")) return "webm";
+  if (ct.includes("quicktime") || ct.includes("mov")) return "mov";
+  return "mp4";
+}
+
 function shortId(): string {
   return Math.random().toString(36).slice(2, 8);
 }
@@ -140,6 +147,38 @@ export async function storeImageBuffer(args: {
   filename?: string;
 }): Promise<string> {
   const ext = extFromContentType(args.contentType);
+  const stamp = Date.now();
+  const safeName = args.filename
+    ? args.filename.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").slice(0, 48)
+    : shortId();
+  const path = `${args.pathPrefix}/${stamp}-${safeName}.${ext}`;
+
+  const supabase = createAdminClient();
+  const { error: upErr } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, args.buffer, {
+      contentType: args.contentType,
+      cacheControl: "31536000",
+      upsert: false,
+    });
+  if (upErr) {
+    throw new Error(`Upload no Storage falhou: ${upErr.message}`);
+  }
+
+  const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  return pub.publicUrl;
+}
+
+// Mesmo bucket das imagens (`social-cards`) — segmento `uploads/video/<scope>/`
+// pra organizar. Cache longo: o nome do arquivo já tem timestamp+id, então
+// não há colisão e o browser pode cachear permanentemente.
+export async function storeVideoBuffer(args: {
+  buffer: Buffer;
+  contentType: string;
+  pathPrefix: string;
+  filename?: string;
+}): Promise<string> {
+  const ext = videoExtFromContentType(args.contentType);
   const stamp = Date.now();
   const safeName = args.filename
     ? args.filename.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").slice(0, 48)

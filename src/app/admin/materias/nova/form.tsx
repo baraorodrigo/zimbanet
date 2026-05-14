@@ -4,6 +4,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { createArticle, updateArticle } from "@/lib/actions/articles";
 import { EDITORIA_LABEL, EDITORIA_SLUGS, type ArticleRow } from "@/lib/db/types";
 import { ImagePicker } from "@/components/image-picker";
+import { VideoPicker } from "@/components/video-picker";
 
 type Mode = "create" | "edit";
 
@@ -177,24 +178,17 @@ export default function ArticleForm(props: Props) {
         </div>
       </Section>
 
-      {/* Vídeo — embed externo (YouTube/Instagram/TikTok). Aparece acima do
-          corpo da matéria, abaixo do hero. Sem upload — quem hospeda é a
-          plataforma original. */}
+      {/* Vídeo — embed externo (YouTube/Instagram/TikTok) OU upload direto
+          (.mp4/.webm/.mov, máx 50 MB). Aparece acima do corpo da matéria,
+          abaixo do hero. Self-hosted toca em <video> nativo. */}
       <Section title="Vídeo (opcional)">
-        <Field
-          label="URL do vídeo"
+        <VideoPicker
           name="video_url"
-          hint="Cola o link público do YouTube, Reels do Instagram ou TikTok. Aceita também YouTube Shorts."
-        >
-          <input
-            type="url"
-            name="video_url"
-            defaultValue={v.video_url ?? ""}
-            maxLength={500}
-            className="input font-mono text-fs-13"
-            placeholder="https://www.youtube.com/watch?v=..."
-          />
-        </Field>
+          defaultValue={v.video_url ?? ""}
+          scope="article"
+          label="Vídeo da matéria"
+          hint="Sobe um arquivo do disco/celular ou cola o link do YouTube, Reels ou TikTok."
+        />
       </Section>
 
       {/* Meta */}

@@ -1,15 +1,16 @@
 // Embed de vídeo em matéria — aceita URL pública de YouTube, Instagram
-// (Reels/IGTV) ou TikTok. O provider é detectado pela URL; renderiza
-// iframe responsivo 16:9 com lazy-loading. Sem upload — quem hospeda
-// continua sendo a plataforma original.
+// (Reels/IGTV), TikTok ou vídeo self-hosted (Supabase Storage, .mp4/.webm/.mov).
+// O provider é detectado pela URL: iframe responsivo pros embeds, <video>
+// nativo pros self-hosted.
 
-type Provider = "youtube" | "instagram" | "tiktok" | "unknown";
+type Provider = "youtube" | "instagram" | "tiktok" | "self" | "unknown";
 
 type ParsedVideo = {
   provider: Provider;
+  /** Pra plataformas: URL de embed. Pra self-hosted: a própria URL do arquivo. */
   embedUrl: string;
   title: string;
-  /** Aspect ratio do iframe: 16/9 horizontal, 9/16 vertical pra Reels/TikTok */
+  /** Aspect ratio do player: 16/9 horizontal, 9/16 vertical pra Reels/TikTok */
   aspectRatio: "16/9" | "9/16";
 };
 
@@ -72,6 +73,21 @@ function parseTikTok(url: URL): ParsedVideo | null {
   };
 }
 
+// Vídeo hospedado por nós (Supabase Storage) ou qualquer arquivo direto
+// .mp4/.webm/.mov. Renderiza <video> nativo no componente. Aspect default
+// é 16/9 — o atributo do player só limita o container; o <video> em si
+// usa object-contain, então clipes verticais aparecem com letterbox sem
+// distorção (cabe trocar pra 9/16 no futuro se aparecer demanda).
+function parseSelfHosted(url: URL): ParsedVideo | null {
+  if (!/\.(mp4|webm|mov)$/i.test(url.pathname)) return null;
+  return {
+    provider: "self",
+    embedUrl: url.toString(),
+    title: "Vídeo",
+    aspectRatio: "16/9",
+  };
+}
+
 export function parseVideoUrl(raw: string | null | undefined): ParsedVideo | null {
   if (!raw) return null;
   let url: URL;
@@ -80,7 +96,12 @@ export function parseVideoUrl(raw: string | null | undefined): ParsedVideo | nul
   } catch {
     return null;
   }
-  return parseYouTube(url) ?? parseInstagram(url) ?? parseTikTok(url);
+  return (
+    parseYouTube(url) ??
+    parseInstagram(url) ??
+    parseTikTok(url) ??
+    parseSelfHosted(url)
+  );
 }
 
 type Props = {
@@ -112,6 +133,27 @@ export default function VideoEmbed({ url, framed = true, className = "" }: Props
   const wrapperFrame = framed ? "rounded-md shadow-z-1" : "";
   // 9/16 (vertical) limita largura pra não ficar gigante em desktop.
   const verticalCap = parsed.aspectRatio === "9/16" ? "max-w-[400px] mx-auto" : "";
+
+  if (parsed.provider === "self") {
+    // object-contain + bg-black: vídeo vertical (gravado em celular) ganha
+    // letterbox em vez de ser cortado. preload="metadata" carrega só o suficiente
+    // pra mostrar duração e primeiro frame, sem puxar o arquivo inteiro até o
+    // leitor dar play.
+    return (
+      <div
+        className={`${wrapperBase} ${wrapperFrame} ${className}`}
+        style={{ aspectRatio: parsed.aspectRatio }}
+      >
+        <video
+          src={parsed.embedUrl}
+          controls
+          playsInline
+          preload="metadata"
+          className="absolute inset-0 h-full w-full object-contain"
+        />
+      </div>
+    );
+  }
 
   return (
     <div

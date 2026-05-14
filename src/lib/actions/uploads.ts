@@ -12,7 +12,7 @@
 // bucket é público; o storage path inclui scope pra organizar. Limita
 // abuso pelo tamanho (admin pode trocar via env futuramente).
 
-import { storeImageBuffer } from "@/lib/storage-images";
+import { storeImageBuffer, storeVideoBuffer } from "@/lib/storage-images";
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 const ALLOWED_TYPES = new Set([
@@ -59,6 +59,57 @@ export async function uploadImage(formData: FormData): Promise<UploadResult> {
       buffer,
       contentType: file.type,
       pathPrefix: `uploads/${scope}`,
+      filename: file.name,
+    });
+    return { ok: true, url };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
+  }
+}
+
+// Upload de vídeo manual (admin baixa de IG/TT/YT ou grava no celular e sobe).
+// Limite 50 MB — suficiente pra clipe curto (1-2 min em 1080p comprimido).
+// Formatos: mp4 (universal), webm (web-native), mov (iPhone padrão).
+//
+// Server Action default body limit subido pra 52mb em next.config.mjs.
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+const ALLOWED_VIDEO_TYPES = new Set([
+  "video/mp4",
+  "video/webm",
+  "video/quicktime", // .mov
+]);
+
+export async function uploadVideo(formData: FormData): Promise<UploadResult> {
+  const file = formData.get("file");
+  const scopeRaw = formData.get("scope");
+  if (!(file instanceof File)) {
+    return { ok: false, error: "Arquivo ausente." };
+  }
+  if (file.size === 0) {
+    return { ok: false, error: "Arquivo vazio." };
+  }
+  if (file.size > MAX_VIDEO_BYTES) {
+    return { ok: false, error: "Vídeo muito grande (máx 50 MB)." };
+  }
+  if (!ALLOWED_VIDEO_TYPES.has(file.type)) {
+    return {
+      ok: false,
+      error: "Formato não suportado. Use MP4, WebM ou MOV.",
+    };
+  }
+
+  const scope =
+    typeof scopeRaw === "string" && /^[a-z0-9-]{1,32}$/.test(scopeRaw)
+      ? scopeRaw
+      : "misc";
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  try {
+    const url = await storeVideoBuffer({
+      buffer,
+      contentType: file.type,
+      pathPrefix: `uploads/video/${scope}`,
       filename: file.name,
     });
     return { ok: true, url };

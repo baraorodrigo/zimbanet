@@ -2,6 +2,11 @@
 const nextConfig = {
   // Gera um servidor mínimo (~150MB vs ~1GB) — necessário pro Docker.
   output: "standalone",
+  experimental: {
+    // Default do Next 14 é 1MB. Subimos pra cobrir upload de vídeo manual
+    // (limite efetivo enforçado em src/lib/actions/uploads.ts: 50MB).
+    serverActions: { bodySizeLimit: "52mb" },
+  },
   images: {
     // Allowlist explícito — evita que `next/image` vire proxy aberto pra
     // qualquer host (custo de banda + risco de abuso de cache). Para liberar
@@ -52,6 +57,7 @@ const nextConfig = {
       "script-src 'self' 'unsafe-inline' https://plausible.io",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
+      "media-src 'self' blob: https://*.supabase.co https://*.supabase.in",
       "font-src 'self' data:",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://plausible.io",
       "frame-ancestors 'none'",
