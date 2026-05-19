@@ -395,9 +395,11 @@ export async function draftArticleFromRaw(formData: FormData): Promise<void> {
   if (existingScored?.id) {
     scoredId = existingScored.id;
   } else {
+    const newScoredId = `scored_${rawId}`;
     const { data: created, error: scErr } = await supabase
       .from("scored_items")
       .insert({
+        id: newScoredId,
         raw_item_id: rawId,
         relevance_score: 0.7,
         virality_score: 0.5,
@@ -409,6 +411,7 @@ export async function draftArticleFromRaw(formData: FormData): Promise<void> {
         ai_reasoning: "Selecionado manualmente pelo admin via pauta.",
         prompt_version: "manual_v1",
         status: "approved",
+        scored_at: new Date().toISOString(),
       })
       .select("id")
       .single();
