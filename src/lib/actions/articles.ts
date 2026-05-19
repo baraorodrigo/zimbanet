@@ -410,7 +410,7 @@ export async function draftArticleFromRaw(formData: FormData): Promise<void> {
         decision: "approve",
         ai_reasoning: "Selecionado manualmente pelo admin via pauta.",
         prompt_version: "manual_v1",
-        status: "approved",
+        status: "scored",
         scored_at: new Date().toISOString(),
       })
       .select("id")
