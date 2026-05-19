@@ -7,7 +7,12 @@ import { Header } from "../_components/header";
 
 export const dynamic = "force-dynamic";
 
-export default async function FilaPage() {
+export default async function FilaPage({
+  searchParams,
+}: {
+  searchParams: { aguardando?: string };
+}) {
+  const aguardando = searchParams?.aguardando;
   const supabase = createClient();
   const { data, error } = await supabase
     .from("articles")
@@ -32,6 +37,25 @@ export default async function FilaPage() {
             : `${items.length} matéria${items.length === 1 ? "" : "s"} pra revisar — vindas da Pauta ou criadas à mão. ${withHero} com foto · ${withoutHero} sem foto.`
         }
       />
+
+      {aguardando && (
+        <div className="mt-4 rounded-md border border-zimba-gold/40 bg-zimba-gold/10 p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-fs-18">✨</span>
+            <div className="flex-1">
+              <p className="font-display font-bold text-fs-15 text-navy">
+                IA reescrevendo agora…
+              </p>
+              <p className="text-fs-13 text-ink-700 mt-1">
+                Demora uns 30-60 segundos. O rascunho vai aparecer aqui em cima quando ficar pronto.{" "}
+                <a href="/admin/fila" className="font-bold text-zimba-blue hover:underline">
+                  Atualizar agora
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mt-6 rounded-md border border-alert-red bg-alert-red/5 p-4 text-fs-14 text-alert-red">

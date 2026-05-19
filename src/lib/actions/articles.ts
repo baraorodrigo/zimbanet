@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isStaff } from "@/lib/auth/admin";
 import { slugify, uniqueArticleSlug } from "@/lib/utils/slug";
 import { EDITORIA_SLUGS, type EditoriaSlug } from "@/lib/db/types";
-import { draftFromScored, finalizeArticle } from "@/lib/radar";
+import { draftFromScored, draftFromScoredAsync, finalizeArticle } from "@/lib/radar";
 import { sendBreakingPush } from "@/lib/push/send";
 
 // Dispara push em background pra matéria recém-publicada com is_breaking=true.
@@ -421,32 +421,26 @@ export async function draftArticleFromRaw(formData: FormData): Promise<void> {
     scoredId = created.id;
   }
 
-  let result;
   try {
-    result = await draftFromScored(scoredId);
+    await draftFromScoredAsync(scoredId);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[draftArticleFromRaw] falhou:", msg);
+    console.error("[draftArticleFromRaw] falhou ao enfileirar:", msg);
     throw new Error("Não consegui acionar a IA: " + msg);
   }
 
   await audit(supabase, {
-    entity_type: "article",
-    entity_id: result.article_id,
-    action: result.reused ? "rewrite_with_ai_reused" : "rewrite_with_ai_from_raw",
+    entity_type: "scored_item",
+    entity_id: scoredId,
+    action: "rewrite_with_ai_queued",
     actor: user!.email ?? user!.id,
-    metadata: {
-      raw_item_id: rawId,
-      scored_item_id: scoredId,
-      enriched_item_id: result.enriched_item_id,
-      slug: result.slug,
-    },
+    metadata: { raw_item_id: rawId, scored_item_id: scoredId },
   });
 
   revalidatePath("/admin/pauta");
   revalidatePath("/admin/fila");
   revalidatePath("/admin", "layout");
-  redirect(`/admin/materias/${result.article_id}`);
+  redirect(`/admin/fila?aguardando=${encodeURIComponent(rawId)}`);
 }
 
 export async function rejectArticle(formData: FormData): Promise<void> {

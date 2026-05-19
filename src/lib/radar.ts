@@ -50,6 +50,13 @@ export async function draftFromScored(scoredItemId: string): Promise<DraftResult
   return radarFetch<DraftResult>(`/pipeline/draft/${encodeURIComponent(scoredItemId)}`);
 }
 
+// Fire-and-forget: enfileira o draft no radar, retorna imediato.
+export async function draftFromScoredAsync(scoredItemId: string): Promise<void> {
+  await radarFetch<{ status: string }>(
+    `/pipeline/draft-async/${encodeURIComponent(scoredItemId)}`,
+  );
+}
+
 export type FinalizeResult = {
   article_id: string;
   visual: { hero_image_alt: string; image_prompt: string; crop_hint: string } | null;

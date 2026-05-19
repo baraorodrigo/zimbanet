@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 
 from app.agents.curador import score_raw_item
 from app.agents.distribuidor import distribute_article
@@ -27,6 +27,53 @@ from app.sources.runner import run_all_active
 
 router = APIRouter()
 log = get_logger("api.pipeline")
+
+
+def _draft_job(scored_item_id: str) -> None:
+    """Roda Investigador + Redator. Usado em BackgroundTasks pro endpoint async."""
+    sb = supabase_client()
+    try:
+        scored_resp = sb.table("scored_items").select("*").eq("id", scored_item_id).limit(1).execute()
+        scored_rows = scored_resp.data or []
+        if not scored_rows:
+            log.error("draft_bg_scored_not_found", scored_item_id=scored_item_id)
+            return
+        scored = ScoredItem.model_validate(scored_rows[0])
+
+        existing = (
+            sb.table("enriched_items").select("*").eq("scored_item_id", scored.id).limit(1).execute()
+        )
+        enriched_rows = existing.data or []
+        if enriched_rows:
+            enriched = EnrichedItem.model_validate(enriched_rows[0])
+        else:
+            _, enriched_obj = enrich_scored_item(scored, persist=True)
+            if enriched_obj is None:
+                log.error("draft_bg_enrich_failed", scored_item_id=scored.id)
+                return
+            enriched = enriched_obj
+
+        art_existing = (
+            sb.table("articles").select("id").eq("enriched_item_id", enriched.id).limit(1).execute()
+        )
+        if art_existing.data:
+            log.info("draft_bg_article_exists", scored_item_id=scored.id)
+            return
+
+        _, article = draft_article(scored=scored, enriched=enriched, persist=True)
+        if article is None:
+            log.error("draft_bg_draft_failed", scored_item_id=scored.id)
+            return
+        log.info("draft_bg_done", scored_item_id=scored.id, article_id=article.id)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("draft_bg_unhandled", scored_item_id=scored_item_id, error=str(exc))
+
+
+@router.post("/draft-async/{scored_item_id}")
+async def pipeline_draft_async(scored_item_id: str, background_tasks: BackgroundTasks) -> dict[str, Any]:
+    """Dispara Investigador + Redator em background. Retorna imediato."""
+    background_tasks.add_task(_draft_job, scored_item_id)
+    return {"scored_item_id": scored_item_id, "status": "queued"}
 
 
 @router.post("/draft/{scored_item_id}")

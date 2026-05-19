@@ -119,6 +119,22 @@ export default async function PautaPage({
         sub={`Tudo que foi raspado nas últimas ${WINDOW_DAYS * 24}h das fontes ativas. Clica em "Reescrever com IA" só nas matérias que tu quer publicar.`}
       />
 
+      {/* Atalho: colar link de outra fonte */}
+      <div className="mt-4 rounded-md border border-zimba-gold/40 bg-zimba-gold/5 p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+        <span className="text-fs-12 font-bold uppercase tracking-[0.18em] text-navy">
+          ↗ Não tá na lista?
+        </span>
+        <span className="text-fs-13 text-ink-700 flex-1">
+          Cola o link da matéria de qualquer site e a gente puxa direto.
+        </span>
+        <Link
+          href="/admin/materias/importar"
+          className="h-10 px-4 rounded-md bg-zimba-gold text-navy text-[11px] uppercase tracking-[0.22em] font-bold hover:bg-navy hover:text-zimba-gold inline-flex items-center justify-center transition-colors"
+        >
+          + Importar de link
+        </Link>
+      </div>
+
       {/* Tabs */}
       <nav className="mt-6 flex gap-2 flex-wrap">
         <Tab
@@ -303,7 +319,7 @@ function PautaCard({
             <button
               type="submit"
               className="flex-1 h-10 rounded-md bg-zimba-gold text-navy text-[11px] uppercase tracking-[0.22em] font-bold hover:bg-navy hover:text-zimba-gold transition-colors"
-              title="IA reescreve título e texto, vai pra rascunho pra você revisar"
+              title="Dispara IA em background, draft aparece na Fila em ~30s"
             >
               ✨ Reescrever com IA
             </button>
