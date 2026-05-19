@@ -393,6 +393,51 @@ def fetch_articles_without_visual(limit: int = 5) -> list[Article]:
     return [Article.model_validate(r) for r in pending]
 
 
+def fetch_articles_to_distribute(limit: int = 5) -> list[Article]:
+    """Articles que já passaram pelo Visual (audit action=visual_brief)
+    mas ainda não geraram pack social (audit action=distribute)."""
+    sb = supabase_client()
+    resp = (
+        sb.table("articles")
+        .select("*")
+        .in_(
+            "status",
+            [
+                ArticleStatus.draft.value,
+                ArticleStatus.review.value,
+                ArticleStatus.scheduled.value,
+                ArticleStatus.published.value,
+            ],
+        )
+        .order("created_at", desc=True)
+        .limit(limit * 4)
+        .execute()
+    )
+    rows = resp.data or []
+    if not rows:
+        return []
+    ids = [r["id"] for r in rows]
+    audit_resp = (
+        sb.table("audit_log")
+        .select("entity_id,action")
+        .eq("entity_type", "article")
+        .in_("action", ["visual_brief", "distribute"])
+        .in_("entity_id", ids)
+        .execute()
+    )
+    visualized: set[str] = set()
+    distributed: set[str] = set()
+    for r in audit_resp.data or []:
+        if r["action"] == "visual_brief":
+            visualized.add(r["entity_id"])
+        elif r["action"] == "distribute":
+            distributed.add(r["entity_id"])
+    pending = [
+        r for r in rows if r["id"] in visualized and r["id"] not in distributed
+    ][:limit]
+    return [Article.model_validate(r) for r in pending]
+
+
 # ============================================================================
 # audit_log
 # ============================================================================

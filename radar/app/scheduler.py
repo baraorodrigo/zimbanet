@@ -4,9 +4,11 @@ Quando SCHEDULE_ENABLED=true, ticks rodam em background:
 - Coletor (RSS+scrapers) a cada 30min
 - Curador (Haiku, barato) a cada 15min — bate em todo raw_item novo
 - Investigador (Sonnet) a cada 60min, máx 3 itens — caro mas vale
-- Redator (Sonnet) a cada 90min, máx 3 itens — gera drafts pra fila
-- Visual (Haiku) a cada 120min, máx 3 — briefing imagem dos drafts
-- Analista (Haiku) a cada 180min, máx 3 — review pós-publish
+- Redator (Sonnet) a cada 60min, máx 5 itens — gera drafts pra fila
+- Visual (Haiku) a cada 60min, máx 5 — briefing imagem dos drafts
+- Distribuidor (Haiku) a cada 60min, máx 5 — pack social por canal
+- Analista (Haiku) a cada 180min, máx 5 — review pós-publish
+- Autopublish a cada 20min — promove drafts confiáveis
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from app.agents.analista import analyze_article
 from app.agents.curador import score_raw_item
+from app.agents.distribuidor import distribute_article
 from app.agents.investigador import enrich_scored_item
 from app.agents.redator import draft_article
 from app.agents.visual import visualize_article
@@ -23,6 +26,7 @@ from app.clients import supabase_client
 from app.config import get_settings
 from app.db.repositories import (
     fetch_approved_unenriched,
+    fetch_articles_to_distribute,
     fetch_articles_without_visual,
     fetch_drafts_for_autopublish,
     fetch_enriched_no_article,
@@ -57,10 +61,10 @@ def _curador_tick(batch_size: int = 5) -> None:
                 ok += 1
             except Exception as exc:  # noqa: BLE001
                 fail += 1
-                log.error("curador_tick_item_failed", raw_item_id=item.id, error=str(exc))
+                log.exception("curador_tick_item_failed", raw_item_id=item.id, error=str(exc))
         log.info("curador_tick_done", ok=ok, fail=fail)
     except Exception as exc:  # noqa: BLE001
-        log.error("curador_tick_outer_failed", error=str(exc))
+        log.exception("curador_tick_outer_failed", error=str(exc))
 
 
 def _collect_tick() -> None:
@@ -70,7 +74,7 @@ def _collect_tick() -> None:
         total = sum(r.get("inserted", 0) for r in results)
         log.info("collect_tick_done", sources=len(results), inserted=total)
     except Exception as exc:  # noqa: BLE001
-        log.error("collect_tick_failed", error=str(exc))
+        log.exception("collect_tick_failed", error=str(exc))
 
 
 def _investigador_tick(batch_size: int = 3) -> None:
@@ -89,17 +93,17 @@ def _investigador_tick(batch_size: int = 3) -> None:
                 ok += 1
             except Exception as exc:  # noqa: BLE001
                 fail += 1
-                log.error(
+                log.exception(
                     "investigador_tick_item_failed",
                     scored_item_id=scored.id,
                     error=str(exc),
                 )
         log.info("investigador_tick_done", ok=ok, fail=fail)
     except Exception as exc:  # noqa: BLE001
-        log.error("investigador_tick_outer_failed", error=str(exc))
+        log.exception("investigador_tick_outer_failed", error=str(exc))
 
 
-def _redator_tick(batch_size: int = 3) -> None:
+def _redator_tick(batch_size: int = 5) -> None:
     """Redação — Sonnet. Pega enriched_items sem artigo e gera draft."""
     try:
         pending = fetch_enriched_no_article(limit=batch_size)
@@ -131,17 +135,17 @@ def _redator_tick(batch_size: int = 3) -> None:
                 ok += 1
             except Exception as exc:  # noqa: BLE001
                 fail += 1
-                log.error(
+                log.exception(
                     "redator_tick_item_failed",
                     enriched_item_id=enriched.id,
                     error=str(exc),
                 )
         log.info("redator_tick_done", ok=ok, fail=fail)
     except Exception as exc:  # noqa: BLE001
-        log.error("redator_tick_outer_failed", error=str(exc))
+        log.exception("redator_tick_outer_failed", error=str(exc))
 
 
-def _visual_tick(batch_size: int = 3) -> None:
+def _visual_tick(batch_size: int = 5) -> None:
     """Briefing visual — Haiku. Pega articles sem visual_brief no audit_log."""
     try:
         pending = fetch_articles_without_visual(limit=batch_size)
@@ -157,17 +161,44 @@ def _visual_tick(batch_size: int = 3) -> None:
                 ok += 1
             except Exception as exc:  # noqa: BLE001
                 fail += 1
-                log.error(
+                log.exception(
                     "visual_tick_item_failed",
                     article_id=article.id,
                     error=str(exc),
                 )
         log.info("visual_tick_done", ok=ok, fail=fail)
     except Exception as exc:  # noqa: BLE001
-        log.error("visual_tick_outer_failed", error=str(exc))
+        log.exception("visual_tick_outer_failed", error=str(exc))
 
 
-def _analista_tick(batch_size: int = 3) -> None:
+def _distribuidor_tick(batch_size: int = 5) -> None:
+    """Geração de pack social — Haiku. Pega articles com visual_brief
+    mas sem distribute no audit_log."""
+    try:
+        pending = fetch_articles_to_distribute(limit=batch_size)
+        if not pending:
+            log.debug("distribuidor_tick_empty")
+            return
+        log.info("distribuidor_tick_start", count=len(pending))
+        ok = 0
+        fail = 0
+        for article in pending:
+            try:
+                distribute_article(article, persist=True)
+                ok += 1
+            except Exception as exc:  # noqa: BLE001
+                fail += 1
+                log.exception(
+                    "distribuidor_tick_item_failed",
+                    article_id=article.id,
+                    error=str(exc),
+                )
+        log.info("distribuidor_tick_done", ok=ok, fail=fail)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("distribuidor_tick_outer_failed", error=str(exc))
+
+
+def _analista_tick(batch_size: int = 5) -> None:
     """Análise pós-publish — Haiku. Roda em articles publicados sem post_review."""
     try:
         pending = fetch_published_articles_no_analysis(limit=batch_size)
@@ -183,14 +214,14 @@ def _analista_tick(batch_size: int = 3) -> None:
                 ok += 1
             except Exception as exc:  # noqa: BLE001
                 fail += 1
-                log.error(
+                log.exception(
                     "analista_tick_item_failed",
                     article_id=article.id,
                     error=str(exc),
                 )
         log.info("analista_tick_done", ok=ok, fail=fail)
     except Exception as exc:  # noqa: BLE001
-        log.error("analista_tick_outer_failed", error=str(exc))
+        log.exception("analista_tick_outer_failed", error=str(exc))
 
 
 def _autopublish_tick(batch_size: int = 5) -> None:
@@ -243,14 +274,14 @@ def _autopublish_tick(batch_size: int = 5) -> None:
                 ok += 1
             except Exception as exc:  # noqa: BLE001
                 fail += 1
-                log.error(
+                log.exception(
                     "autopublish_tick_item_failed",
                     article_id=article.id,
                     error=str(exc),
                 )
         log.info("autopublish_tick_done", ok=ok, fail=fail)
     except Exception as exc:  # noqa: BLE001
-        log.error("autopublish_tick_outer_failed", error=str(exc))
+        log.exception("autopublish_tick_outer_failed", error=str(exc))
 
 
 def start_scheduler() -> AsyncIOScheduler | None:
@@ -292,7 +323,7 @@ def start_scheduler() -> AsyncIOScheduler | None:
     )
     scheduler.add_job(
         _redator_tick,
-        trigger=IntervalTrigger(minutes=90),
+        trigger=IntervalTrigger(minutes=60),
         id="redator_tick",
         name="Redator — gera drafts (Sonnet)",
         max_instances=1,
@@ -301,9 +332,18 @@ def start_scheduler() -> AsyncIOScheduler | None:
     )
     scheduler.add_job(
         _visual_tick,
-        trigger=IntervalTrigger(minutes=120),
+        trigger=IntervalTrigger(minutes=60),
         id="visual_tick",
         name="Visual — briefing imagem (Haiku)",
+        max_instances=1,
+        coalesce=True,
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _distribuidor_tick,
+        trigger=IntervalTrigger(minutes=60),
+        id="distribuidor_tick",
+        name="Distribuidor — pack social (Haiku)",
         max_instances=1,
         coalesce=True,
         replace_existing=True,
