@@ -23,7 +23,7 @@ export default async function CuradorPage() {
               versão {rubric.prompt_version}
             </span>
             <span className="text-fs-12 text-ink-500 font-mono">
-              salva em {new Date(rubric.updated_at).toLocaleString("pt-BR")}
+              salva em {new Date(rubric.updated_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
               {rubric.updated_by && ` por ${rubric.updated_by}`}
             </span>
           </>

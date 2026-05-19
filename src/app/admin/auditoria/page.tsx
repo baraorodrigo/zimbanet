@@ -90,6 +90,7 @@ export default async function AuditoriaPage() {
                           year: "2-digit",
                           hour: "2-digit",
                           minute: "2-digit",
+                          timeZone: "America/Sao_Paulo",
                         })}
                       </span>
                     </div>

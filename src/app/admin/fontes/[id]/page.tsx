@@ -50,7 +50,7 @@ export default async function EditarFontePage({
         title={source.name}
         sub={`${rawItems} ${rawItems === 1 ? "item coletado" : "itens coletados"} · cadastrada em ${new Date(
           source.created_at,
-        ).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}`}
+        ).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Sao_Paulo" })}`}
       />
 
       <div className="mt-6 flex items-center gap-3 text-fs-12">
@@ -75,6 +75,7 @@ export default async function EditarFontePage({
                   month: "short",
                   hour: "2-digit",
                   minute: "2-digit",
+                  timeZone: "America/Sao_Paulo",
                 })
               : "nunca"
           }

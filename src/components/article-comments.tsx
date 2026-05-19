@@ -27,7 +27,7 @@ function relTime(iso: string): string {
   if (h < 24) return `há ${h}h`;
   const d = Math.round(h / 24);
   if (d < 7) return `há ${d}d`;
-  return new Date(iso).toLocaleDateString("pt-BR");
+  return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
 function initials(name: string) {

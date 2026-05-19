@@ -154,7 +154,7 @@ export default async function AdminHome() {
                     <p className="font-display font-bold text-fs-16 text-navy truncate">{a.title}</p>
                     <p className="text-fs-12 text-ink-500 mt-0.5">
                       {EDITORIA_LABEL[a.editoria as EditoriaSlug] ?? a.editoria} ·{" "}
-                      {new Date(a.updated_at as string).toLocaleString("pt-BR")}
+                      {new Date(a.updated_at as string).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                     </p>
                   </div>
                   <span className="text-ink-400 text-fs-13">→</span>

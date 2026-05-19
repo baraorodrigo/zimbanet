@@ -22,7 +22,7 @@ export default async function EditPersonaPage({
         title={persona.name}
         sub={
           persona.headline ??
-          `Editando "${persona.slug}" — criada em ${new Date(persona.created_at).toLocaleString("pt-BR")}`
+          `Editando "${persona.slug}" — criada em ${new Date(persona.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`
         }
       />
 

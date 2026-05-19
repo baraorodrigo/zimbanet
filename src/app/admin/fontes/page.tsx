@@ -224,6 +224,7 @@ function SourceCard({
                 month: "short",
                 hour: "2-digit",
                 minute: "2-digit",
+                timeZone: "America/Sao_Paulo",
               })}`
             : "Nunca coletada"}
         </span>

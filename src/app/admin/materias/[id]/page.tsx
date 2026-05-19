@@ -63,7 +63,7 @@ export default async function EditMateriaPage({ params }: { params: { id: string
           STATUS_LABEL[data.status as string] ?? data.status
         }`}
         title={data.title as string}
-        sub={`Editando matéria · criada em ${new Date(data.created_at as string).toLocaleString("pt-BR")}`}
+        sub={`Editando matéria · criada em ${new Date(data.created_at as string).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`}
       />
 
       <div className="mt-6 flex flex-wrap items-center gap-2">

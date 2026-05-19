@@ -33,7 +33,7 @@ function relativeTime(iso: string): string {
   const d = Math.round(h / 24);
   if (d === 1) return "ontem";
   if (d < 7) return `há ${d}d`;
-  return new Date(iso).toLocaleDateString("pt-BR");
+  return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
 type FetchOpts = {

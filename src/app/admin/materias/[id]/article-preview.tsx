@@ -49,6 +49,7 @@ function formatDateLabel(iso: string | null, fallback: string): string {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "America/Sao_Paulo",
     });
   } catch {
     return fallback;

@@ -88,7 +88,7 @@ export async function HistoryPanel({ socialPostId }: Props) {
                 <time
                   className="shrink-0 font-mono text-[10px] text-ink-400"
                   dateTime={e.created_at}
-                  title={new Date(e.created_at).toLocaleString("pt-BR")}
+                  title={new Date(e.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                 >
                   {relativeTime(e.created_at)}
                 </time>

@@ -127,7 +127,7 @@ function SlotCard({ slot }: { slot: SlotConfig }) {
             />
             {slot.updatedAt && (
               <span className="block text-[10px] uppercase tracking-[0.18em] text-ink-400 mt-1">
-                Atualizada {new Date(slot.updatedAt).toLocaleString("pt-BR")}
+                Atualizada {new Date(slot.updatedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
               </span>
             )}
           </label>

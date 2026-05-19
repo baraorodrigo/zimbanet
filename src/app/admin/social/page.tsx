@@ -382,6 +382,7 @@ function PostRow({ post, status }: { post: SocialRow; status: StatusKey }) {
             month: "short",
             hour: "2-digit",
             minute: "2-digit",
+            timeZone: "America/Sao_Paulo",
           })}
         </p>
         {post.external_url && (

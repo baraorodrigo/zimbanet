@@ -105,6 +105,7 @@ function fmtClock(iso: string | null): string {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
   });
 }
 
@@ -311,6 +312,7 @@ export default async function AutonomoPage() {
                       month: "short",
                       hour: "2-digit",
                       minute: "2-digit",
+                      timeZone: "America/Sao_Paulo",
                     })}
                   </span>
                 </li>
