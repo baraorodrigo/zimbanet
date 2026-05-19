@@ -393,6 +393,44 @@ def fetch_articles_without_visual(limit: int = 5) -> list[Article]:
     return [Article.model_validate(r) for r in pending]
 
 
+def fetch_articles_without_hero(limit: int = 20) -> list[Article]:
+    """Articles em draft/review com hero_image_url null E que tenham scored_item_id
+    (pra rastrear raw_item.image_url). Sem scored_item não dá pra puxar da fonte.
+
+    Filtra também os que já foram tentados (audit action=auto_fetch_hero_failed)
+    pra não ficar batendo em URL morta.
+    """
+    sb = supabase_client()
+    resp = (
+        sb.table("articles")
+        .select("*")
+        .in_(
+            "status",
+            [ArticleStatus.draft.value, ArticleStatus.review.value],
+        )
+        .is_("hero_image_url", "null")
+        .not_.is_("scored_item_id", "null")
+        .order("created_at", desc=True)
+        .limit(limit * 3)
+        .execute()
+    )
+    rows = resp.data or []
+    if not rows:
+        return []
+    ids = [r["id"] for r in rows]
+    audit_resp = (
+        sb.table("audit_log")
+        .select("entity_id")
+        .eq("entity_type", "article")
+        .in_("action", ["auto_fetch_hero", "auto_fetch_hero_failed"])
+        .in_("entity_id", ids)
+        .execute()
+    )
+    tried = {r["entity_id"] for r in (audit_resp.data or [])}
+    pending = [r for r in rows if r["id"] not in tried][:limit]
+    return [Article.model_validate(r) for r in pending]
+
+
 def fetch_articles_to_distribute(limit: int = 5) -> list[Article]:
     """Articles que já passaram pelo Visual (audit action=visual_brief)
     mas ainda não geraram pack social (audit action=distribute)."""

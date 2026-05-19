@@ -6,6 +6,7 @@ Quando SCHEDULE_ENABLED=true, ticks rodam em background:
 - Investigador (Sonnet) a cada 60min, máx 3 itens — caro mas vale
 - Redator (Sonnet) a cada 60min, máx 5 itens — gera drafts pra fila
 - Visual (Haiku) a cada 60min, máx 5 — briefing imagem dos drafts
+- Hero source a cada 30min, máx 20 — puxa foto da fonte original (sem IA)
 - Distribuidor (Haiku) a cada 60min, máx 5 — pack social por canal
 - Analista (Haiku) a cada 180min, máx 5 — review pós-publish
 - Autopublish a cada 20min — promove drafts confiáveis
@@ -19,6 +20,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from app.agents.analista import analyze_article
 from app.agents.curador import score_raw_item
 from app.agents.distribuidor import distribute_article
+from app.agents.hero_fetcher import fetch_hero_for_article
 from app.agents.investigador import enrich_scored_item
 from app.agents.redator import draft_article
 from app.agents.visual import visualize_article
@@ -27,6 +29,7 @@ from app.config import get_settings
 from app.db.repositories import (
     fetch_approved_unenriched,
     fetch_articles_to_distribute,
+    fetch_articles_without_hero,
     fetch_articles_without_visual,
     fetch_drafts_for_autopublish,
     fetch_enriched_no_article,
@@ -169,6 +172,36 @@ def _visual_tick(batch_size: int = 5) -> None:
         log.info("visual_tick_done", ok=ok, fail=fail)
     except Exception as exc:  # noqa: BLE001
         log.exception("visual_tick_outer_failed", error=str(exc))
+
+
+def _hero_source_tick(batch_size: int = 20) -> None:
+    """Puxa hero da fonte original — sem IA, só I/O. Roda em articles draft/review
+    sem hero_image_url. Falha sem image_url da fonte é registrada em audit
+    pra não re-tentar."""
+    try:
+        pending = fetch_articles_without_hero(limit=batch_size)
+        if not pending:
+            log.debug("hero_source_tick_empty")
+            return
+        log.info("hero_source_tick_start", count=len(pending))
+        ok = 0
+        fail = 0
+        for article in pending:
+            try:
+                if fetch_hero_for_article(article, persist=True):
+                    ok += 1
+                else:
+                    fail += 1
+            except Exception as exc:  # noqa: BLE001
+                fail += 1
+                log.exception(
+                    "hero_source_tick_item_failed",
+                    article_id=article.id,
+                    error=str(exc),
+                )
+        log.info("hero_source_tick_done", ok=ok, fail=fail)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("hero_source_tick_outer_failed", error=str(exc))
 
 
 def _distribuidor_tick(batch_size: int = 5) -> None:
@@ -335,6 +368,15 @@ def start_scheduler() -> AsyncIOScheduler | None:
         trigger=IntervalTrigger(minutes=60),
         id="visual_tick",
         name="Visual — briefing imagem (Haiku)",
+        max_instances=1,
+        coalesce=True,
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _hero_source_tick,
+        trigger=IntervalTrigger(minutes=30),
+        id="hero_source_tick",
+        name="Hero source — puxa imagem da fonte original",
         max_instances=1,
         coalesce=True,
         replace_existing=True,
