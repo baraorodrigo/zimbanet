@@ -1,15 +1,14 @@
 """APScheduler — orquestração periódica do pipeline.
 
 Quando SCHEDULE_ENABLED=true, ticks rodam em background:
-- Coletor (RSS+scrapers) a cada 30min
-- Curador (Haiku, barato) a cada 15min — bate em todo raw_item novo
-- Investigador (Sonnet) a cada 60min, máx 3 itens — caro mas vale
-- Redator (Sonnet) a cada 60min, máx 5 itens — gera drafts pra fila
-- Visual (Haiku) a cada 60min, máx 5 — briefing imagem dos drafts
+- Coletor (RSS+scrapers) a cada 30min — sem IA, só I/O
 - Hero source a cada 30min, máx 20 — puxa foto da fonte original (sem IA)
-- Distribuidor (Haiku) a cada 60min, máx 5 — pack social por canal
-- Analista (Haiku) a cada 180min, máx 5 — review pós-publish
-- Autopublish a cada 20min — promove drafts confiáveis
+- Autopublish a cada 20min — promove drafts confiáveis (sem IA, só promoção)
+
+Agentes IA (Curador/Investigador/Redator/Visual/Distribuidor/Analista) NÃO rodam
+mais em background — dispara via botões do admin. Decisão: o curador rejeitava
+~93% dos itens, queimando token automaticamente em conteúdo que viraria lixo.
+Pra reativar, descomenta os add_job correspondentes em start_scheduler().
 """
 
 from __future__ import annotations
@@ -336,65 +335,20 @@ def start_scheduler() -> AsyncIOScheduler | None:
         coalesce=True,
         replace_existing=True,
     )
-    scheduler.add_job(
-        _curador_tick,
-        trigger=IntervalTrigger(minutes=15),
-        id="curador_tick",
-        name="Curador — triagem editorial",
-        max_instances=1,
-        coalesce=True,
-        replace_existing=True,
-    )
-    scheduler.add_job(
-        _investigador_tick,
-        trigger=IntervalTrigger(minutes=60),
-        id="investigador_tick",
-        name="Investigador — enriquecimento (Sonnet)",
-        max_instances=1,
-        coalesce=True,
-        replace_existing=True,
-    )
-    scheduler.add_job(
-        _redator_tick,
-        trigger=IntervalTrigger(minutes=60),
-        id="redator_tick",
-        name="Redator — gera drafts (Sonnet)",
-        max_instances=1,
-        coalesce=True,
-        replace_existing=True,
-    )
-    scheduler.add_job(
-        _visual_tick,
-        trigger=IntervalTrigger(minutes=60),
-        id="visual_tick",
-        name="Visual — briefing imagem (Haiku)",
-        max_instances=1,
-        coalesce=True,
-        replace_existing=True,
-    )
+    # Agentes IA desligados do scheduler — dispara via botão do admin.
+    # Curador rejeitava 93% dos itens, queimando token em lixo. IA agora
+    # só roda quando o editor marca "passar pro curador" / "redigir".
+    # scheduler.add_job(_curador_tick, ...)
+    # scheduler.add_job(_investigador_tick, ...)
+    # scheduler.add_job(_redator_tick, ...)
+    # scheduler.add_job(_visual_tick, ...)
+    # scheduler.add_job(_distribuidor_tick, ...)
+    # scheduler.add_job(_analista_tick, ...)
     scheduler.add_job(
         _hero_source_tick,
         trigger=IntervalTrigger(minutes=30),
         id="hero_source_tick",
         name="Hero source — puxa imagem da fonte original",
-        max_instances=1,
-        coalesce=True,
-        replace_existing=True,
-    )
-    scheduler.add_job(
-        _distribuidor_tick,
-        trigger=IntervalTrigger(minutes=60),
-        id="distribuidor_tick",
-        name="Distribuidor — pack social (Haiku)",
-        max_instances=1,
-        coalesce=True,
-        replace_existing=True,
-    )
-    scheduler.add_job(
-        _analista_tick,
-        trigger=IntervalTrigger(minutes=180),
-        id="analista_tick",
-        name="Analista — review pós-publish (Haiku)",
         max_instances=1,
         coalesce=True,
         replace_existing=True,

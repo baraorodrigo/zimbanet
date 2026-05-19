@@ -66,10 +66,14 @@ export default async function PautaPage({
   // 1) Mapa de scored_item_id → matéria-filha (qualquer status).
   // Usado pra (a) tirar da pauta scored_items já consumidos (publicada/arquivada/rejeitada)
   // e (b) anotar com badge os que têm rascunho/revisão pendente.
+  // Janela de 14 dias evita lista gigante de UUIDs passada via querystring
+  // pro PostgREST (era a causa da lentidão da página).
+  const cutoff14d = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
   const { data: linkedRows } = await supabase
     .from("articles")
     .select("id, scored_item_id, status, slug, editoria")
-    .not("scored_item_id", "is", null);
+    .not("scored_item_id", "is", null)
+    .gte("created_at", cutoff14d);
 
   const linkedByScored = new Map<string, LinkedArticle>();
   for (const r of (linkedRows ?? []) as Array<{
