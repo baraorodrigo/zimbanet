@@ -372,6 +372,80 @@ export async function draftArticleWithAI(formData: FormData): Promise<void> {
   redirect(`/admin/materias/${result.article_id}`);
 }
 
+// Versão direta: parte de raw_item, sem passar pelo Curador.
+// Cria scored_item placeholder (admin "aprovou" ao clicar) e segue o fluxo padrão.
+export async function draftArticleFromRaw(formData: FormData): Promise<void> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!isStaff(user)) throw new Error("Sem permissão.");
+
+  const rawId = field(formData, "raw_item_id");
+  if (!rawId) throw new Error("raw_item_id ausente.");
+
+  // Reusa scored_item se já existir (raw pode ter sido scorado em algum momento).
+  const { data: existingScored } = await supabase
+    .from("scored_items")
+    .select("id")
+    .eq("raw_item_id", rawId)
+    .order("scored_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let scoredId: string;
+  if (existingScored?.id) {
+    scoredId = existingScored.id;
+  } else {
+    const { data: created, error: scErr } = await supabase
+      .from("scored_items")
+      .insert({
+        raw_item_id: rawId,
+        relevance_score: 0.7,
+        virality_score: 0.5,
+        risk_score: 0.0,
+        risk_flags: [],
+        editoria: "cidade",
+        classification: "manual",
+        decision: "approve",
+        ai_reasoning: "Selecionado manualmente pelo admin via pauta.",
+        prompt_version: "manual_v1",
+        status: "approved",
+      })
+      .select("id")
+      .single();
+    if (scErr || !created) {
+      throw new Error("Falha ao registrar seleção: " + (scErr?.message ?? "sem id"));
+    }
+    scoredId = created.id;
+  }
+
+  let result;
+  try {
+    result = await draftFromScored(scoredId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[draftArticleFromRaw] falhou:", msg);
+    throw new Error("Não consegui acionar a IA: " + msg);
+  }
+
+  await audit(supabase, {
+    entity_type: "article",
+    entity_id: result.article_id,
+    action: result.reused ? "rewrite_with_ai_reused" : "rewrite_with_ai_from_raw",
+    actor: user!.email ?? user!.id,
+    metadata: {
+      raw_item_id: rawId,
+      scored_item_id: scoredId,
+      enriched_item_id: result.enriched_item_id,
+      slug: result.slug,
+    },
+  });
+
+  revalidatePath("/admin/pauta");
+  revalidatePath("/admin/fila");
+  revalidatePath("/admin", "layout");
+  redirect(`/admin/materias/${result.article_id}`);
+}
+
 export async function rejectArticle(formData: FormData): Promise<void> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
