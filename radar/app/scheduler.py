@@ -113,7 +113,7 @@ def _redator_tick(batch_size: int = 5) -> None:
         log.info("redator_tick_start", count=len(pending))
         ok = 0
         fail = 0
-        client = supabase_client.get_supabase()
+        client = supabase_client()
         for enriched in pending:
             try:
                 row = (
