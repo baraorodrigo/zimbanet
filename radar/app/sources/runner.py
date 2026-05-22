@@ -107,7 +107,14 @@ def run_source(source: Source) -> dict[str, Any]:
     fresh = _flag_semantic_duplicates(fresh)
     inserted = _insert_items(fresh)
 
-    update_source_run(source.id, error=False)
+    # Adapter retornar zero candidatos não é exceção mas é quase sempre
+    # falha real: selector quebrado, feed mudou, ou WAF bloqueou. Antes
+    # chamávamos update_source_run(error=False) e a fonte ficava com cara
+    # de saudável no /admin/fontes — silent breakage. Agora marca erro.
+    no_candidates = len(candidates) == 0
+    if no_candidates:
+        log.warning("source_returned_zero", source_id=source.id, type=source.type.value)
+    update_source_run(source.id, error=no_candidates)
     return {
         "source_id": source.id,
         "candidates": len(candidates),

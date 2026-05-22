@@ -23,21 +23,42 @@ from app.sources.video import extract_video_url
 
 log = get_logger("sources.scraper")
 
-USER_AGENT = "ZIMBANET-Radar/0.1 (+https://zimbanet.com.br)"
+# UA browser-like: portais regionais atrás de Cloudflare/WAF bloqueavam o
+# UA "ZIMBANET-Radar" → coleta zerava silenciosamente. Chrome em Windows
+# passa pelos challenges padrão sem cookies.
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
+ACCEPT_HEADER = (
+    "text/html,application/xhtml+xml,application/xml;q=0.9,"
+    "image/avif,image/webp,*/*;q=0.8"
+)
 TIMEOUT = httpx.Timeout(15.0, connect=10.0)
 MAX_ARTICLES_PER_RUN = 10
 
 
-def _fetch(url: str) -> str | None:
-    try:
-        resp = httpx.get(url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT, follow_redirects=True)
-        if resp.status_code >= 400:
-            log.warning("scraper_http_error", url=url, status=resp.status_code)
+def _fetch(url: str, *, retries: int = 1) -> str | None:
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": ACCEPT_HEADER,
+        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+    }
+    for attempt in range(retries + 1):
+        try:
+            resp = httpx.get(url, headers=headers, timeout=TIMEOUT, follow_redirects=True)
+            if resp.status_code >= 400:
+                if attempt < retries and resp.status_code in (429, 500, 502, 503, 504):
+                    continue
+                log.warning("scraper_http_error", url=url, status=resp.status_code)
+                return None
+            return resp.text
+        except httpx.HTTPError as exc:
+            if attempt < retries:
+                continue
+            log.warning("scraper_http_failed", url=url, error=str(exc))
             return None
-        return resp.text
-    except httpx.HTTPError as exc:
-        log.warning("scraper_http_failed", url=url, error=str(exc))
-        return None
+    return None
 
 
 def _from_selector(soup: BeautifulSoup, selector: str, article_url: str) -> str | None:

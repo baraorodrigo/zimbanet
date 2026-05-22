@@ -38,7 +38,15 @@ from app.sources.video import extract_video_url
 
 log = get_logger("sources.regional")
 
-USER_AGENT = "ZIMBANET-Radar/0.1 (+https://zimbanet.com.br)"
+# UA Chrome em Windows: Portal Ahora e Portal Click Sul têm Cloudflare na
+# frente e bloqueiam UAs identificáveis como bot. Quando isso acontece o
+# fetch volta 403/HTML curto, parser não acha link nenhum, e o adapter
+# devolve zero. Como Ahora e Click Sul são as duas únicas fontes 100%
+# locais de Imbituba, a pauta fica sem matéria de Imbituba inteira.
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
 TIMEOUT = httpx.Timeout(20.0, connect=10.0)
 SLEEP_BETWEEN_REQUESTS = 0.3  # gentil com os portais
 
@@ -82,26 +90,39 @@ class Article:
 # ============================================================================
 def make_client() -> httpx.Client:
     return httpx.Client(
-        headers={"User-Agent": USER_AGENT, "Accept-Language": "pt-BR,pt;q=0.9"},
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": (
+                "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                "image/avif,image/webp,*/*;q=0.8"
+            ),
+            "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+        },
         timeout=TIMEOUT,
         follow_redirects=True,
     )
 
 
-def fetch(client: httpx.Client, url: str) -> str | None:
-    try:
-        resp = client.get(url)
-        time.sleep(SLEEP_BETWEEN_REQUESTS)
-        body = resp.text or ""
-        # Portal Ahora devolve 404 nas páginas de arquivo, mas com o HTML
-        # real no body. Aceitamos qualquer resposta com HTML substancial.
-        if resp.status_code >= 500 or (resp.status_code >= 400 and len(body) < 2000):
-            log.warning("fetch_http_error", url=url, status=resp.status_code)
+def fetch(client: httpx.Client, url: str, *, retries: int = 1) -> str | None:
+    for attempt in range(retries + 1):
+        try:
+            resp = client.get(url)
+            time.sleep(SLEEP_BETWEEN_REQUESTS)
+            body = resp.text or ""
+            # Portal Ahora devolve 404 nas páginas de arquivo, mas com o HTML
+            # real no body. Aceitamos qualquer resposta com HTML substancial.
+            if resp.status_code >= 500 or (resp.status_code >= 400 and len(body) < 2000):
+                if attempt < retries and resp.status_code in (429, 500, 502, 503, 504):
+                    continue
+                log.warning("fetch_http_error", url=url, status=resp.status_code)
+                return None
+            return body
+        except httpx.HTTPError as exc:
+            if attempt < retries:
+                continue
+            log.warning("fetch_failed", url=url, error=str(exc))
             return None
-        return body
-    except httpx.HTTPError as exc:
-        log.warning("fetch_failed", url=url, error=str(exc))
-        return None
+    return None
 
 
 # ============================================================================

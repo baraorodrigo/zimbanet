@@ -29,8 +29,18 @@ from app.sources.video import extract_video_url
 log = get_logger("sources.rss")
 
 _IMG_TAG_RE = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
-_OG_FETCH_TIMEOUT = 3.0
-_OG_USER_AGENT = "ZimbanetRadar/0.1 (+https://zimbanet.com.br)"
+# 3s era curto demais pra portais regionais brasileiros (G1, NSC, ND+
+# costumam levar 4-6s na primeira request por causa de Cloudflare). UA
+# branded apanhava do WAF; Chrome em Windows passa pelos challenges.
+_OG_FETCH_TIMEOUT = 8.0
+_OG_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
+_OG_ACCEPT = (
+    "text/html,application/xhtml+xml,application/xml;q=0.9,"
+    "image/avif,image/webp,*/*;q=0.8"
+)
 
 
 def _entry_published(entry: Any) -> datetime | None:
@@ -96,7 +106,11 @@ def _fetch_page_soup(link: str) -> BeautifulSoup | None:
     try:
         with httpx.Client(
             timeout=_OG_FETCH_TIMEOUT,
-            headers={"User-Agent": _OG_USER_AGENT},
+            headers={
+                "User-Agent": _OG_USER_AGENT,
+                "Accept": _OG_ACCEPT,
+                "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+            },
             follow_redirects=True,
         ) as client:
             resp = client.get(link)
