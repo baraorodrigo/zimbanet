@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { EDITORIA_LABEL, type EditoriaSlug } from "@/lib/db/types";
@@ -52,16 +53,42 @@ type LinkedArticle = {
   editoria: string;
 };
 
-export default async function PautaPage({
+export default function PautaPage({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
-  const supabase = createClient();
-
   const decision = (searchParams.decision ?? "investigate") as DecisionFilter;
   const editoria = searchParams.editoria ?? "all";
   const q = (searchParams.q ?? "").trim();
+
+  return (
+    <>
+      <Header
+        kicker="Pauta · passo 1 de 2"
+        title="O que o Curador trouxe"
+        sub="O Curador tria os sinais regionais por relevância, risco e potencial. Você decide o que vira matéria — depois de “Redigir”, o rascunho aparece em Fila pra revisar e publicar."
+      />
+      {/* Suspense com chave por filtro: cada clique de aba/filtro troca a chave,
+          mostrando o esqueleto NA HORA enquanto o servidor refaz as consultas —
+          em vez de congelar no conteúdo antigo. */}
+      <Suspense key={`${decision}|${editoria}|${q}`} fallback={<PautaSkeleton />}>
+        <PautaBody decision={decision} editoria={editoria} q={q} />
+      </Suspense>
+    </>
+  );
+}
+
+async function PautaBody({
+  decision,
+  editoria,
+  q,
+}: {
+  decision: DecisionFilter;
+  editoria: string;
+  q: string;
+}) {
+  const supabase = createClient();
 
   // 1) Mapa de scored_item_id → matéria-filha (qualquer status).
   // Usado pra (a) tirar da pauta scored_items já consumidos (publicada/arquivada/rejeitada)
@@ -152,12 +179,6 @@ export default async function PautaPage({
 
   return (
     <>
-      <Header
-        kicker="Pauta · passo 1 de 2"
-        title="O que o Curador trouxe"
-        sub={`${items.length} sinais ranqueados pelo Curador (Haiku). Aqui você decide o que vira matéria — depois de "Redigir", o rascunho aparece em Fila pronto pra revisar e publicar.`}
-      />
-
       {/* Tabs por decisão */}
       <nav className="mt-6 flex gap-2 flex-wrap">
         <DecisionTab
@@ -536,6 +557,46 @@ function ScoreBar({
       </div>
       <div className="mt-1 h-1.5 rounded-full bg-off-white border border-border-subtle overflow-hidden">
         <div className={`h-full ${fill}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+// Esqueleto mostrado na hora a cada troca de aba/filtro (fallback do Suspense).
+function PautaSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="mt-6 flex gap-2 flex-wrap">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-10 w-28 rounded-md bg-ink-100" />
+        ))}
+      </div>
+      <div className="mt-4 h-11 w-full max-w-[340px] rounded-md bg-ink-100" />
+      <div className="mt-8 grid gap-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="rounded-md border border-border-subtle bg-white p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-[140px_1fr] md:grid-cols-[160px_1fr_auto] gap-4 sm:gap-5"
+          >
+            <div className="aspect-[16/9] sm:aspect-square rounded-md bg-ink-100" />
+            <div className="min-w-0">
+              <div className="h-3 w-40 rounded bg-ink-100" />
+              <div className="mt-2 h-7 w-3/4 rounded bg-ink-100" />
+              <div className="mt-2 h-4 w-full rounded bg-ink-100" />
+              <div className="mt-1 h-4 w-5/6 rounded bg-ink-100" />
+              <div className="mt-3 grid grid-cols-3 gap-3 max-w-[520px]">
+                <div className="h-6 rounded bg-ink-100" />
+                <div className="h-6 rounded bg-ink-100" />
+                <div className="h-6 rounded bg-ink-100" />
+              </div>
+            </div>
+            <div className="hidden md:flex flex-col gap-2 w-[180px]">
+              <div className="h-10 rounded-md bg-ink-100" />
+              <div className="h-10 rounded-md bg-ink-100" />
+              <div className="h-10 rounded-md bg-ink-100" />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
