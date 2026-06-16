@@ -13,6 +13,10 @@ type AgentRow = {
 
 export type AgentContext = { agent: AgentRow };
 
+// Segundo argumento que o Next passa pra route handlers de segmento dinâmico
+// (ex: /api/ai/articles/[id]). Em rotas estáticas (ping) vem undefined.
+export type RouteCtx = { params: Record<string, string> };
+
 type Opts = {
   action?: "read" | "write";
   resource?: string; // se omitido, só exige token válido (ex: ping)
@@ -27,9 +31,9 @@ function json(body: unknown, status: number) {
 // active/revoked, permissão de escopo, rate-limit por agente e auditoria.
 export function withAgent(
   opts: Opts,
-  handler: (req: Request, ctx: AgentContext) => Promise<Response>,
+  handler: (req: Request, ctx: AgentContext, route: RouteCtx) => Promise<Response>,
 ) {
-  return async (req: Request): Promise<Response> => {
+  return async (req: Request, route: RouteCtx): Promise<Response> => {
     const sb = createAdminClient();
     const auth = req.headers.get("authorization") ?? "";
     const raw = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
@@ -73,7 +77,7 @@ export function withAgent(
 
     const startedAt = new Date().toISOString();
     try {
-      const res = await handler(req, { agent: agent as AgentRow });
+      const res = await handler(req, { agent: agent as AgentRow }, route);
       await sb.from("agent_runs").insert({
         agent_id: agent.id,
         tool: opts.tool,
