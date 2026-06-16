@@ -7,9 +7,10 @@ from app.config import get_settings
 
 
 @lru_cache
-def anthropic_client() -> Anthropic:
-    settings = get_settings()
-    return Anthropic(api_key=settings.anthropic_api_key)
+def anthropic_client(api_key: str | None = None) -> Anthropic:
+    # api_key explícito (resolvido por slot) tem prioridade; senão cai pro .env.
+    key = api_key or get_settings().anthropic_api_key
+    return Anthropic(api_key=key)
 
 
 @lru_cache

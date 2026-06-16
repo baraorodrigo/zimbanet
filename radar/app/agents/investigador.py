@@ -7,7 +7,6 @@ de foto e queries pra busca web. Saída persiste como enriched_item.
 
 from __future__ import annotations
 
-from app.config import get_settings
 from app.db.repositories import (
     fetch_raw_item,
     insert_audit_log,
@@ -127,7 +126,6 @@ def _build_user_prompt(scored: ScoredItem, raw_title: str, raw_body: str | None,
 def enrich_scored_item(
     scored: ScoredItem, *, persist: bool = True
 ) -> tuple[InvestigadorOutput, EnrichedItem | None]:
-    settings = get_settings()
     raw = fetch_raw_item(scored.raw_item_id)
     if raw is None:
         raise RuntimeError(
@@ -136,7 +134,7 @@ def enrich_scored_item(
 
     user_prompt = _build_user_prompt(scored, raw.title, raw.body, raw.url)
     result = call_with_tool(
-        model=settings.model_investigador,
+        slot="text_main",
         system=SYSTEM_PROMPT,
         user=user_prompt,
         tool_name=TOOL_NAME,

@@ -7,7 +7,6 @@ Foco em acessibilidade (alt) e em prompts que combinem com a estética da marca.
 from __future__ import annotations
 
 from app.agents.visual_slots import derive_default_slots
-from app.config import get_settings
 from app.db.repositories import (
     insert_audit_log,
     update_article_visual,
@@ -85,10 +84,9 @@ def _build_user_prompt(article: Article) -> str:
 def visualize_article(
     article: Article, *, persist: bool = True
 ) -> VisualOutput:
-    settings = get_settings()
     user_prompt = _build_user_prompt(article)
     result = call_with_tool(
-        model=settings.model_visual,
+        slot="text_fast",
         system=SYSTEM_PROMPT,
         user=user_prompt,
         tool_name=TOOL_NAME,

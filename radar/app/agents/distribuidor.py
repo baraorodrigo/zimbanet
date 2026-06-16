@@ -211,7 +211,7 @@ def distribute_article(
     settings = get_settings()
     user_prompt = _build_user_prompt(article)
     result = call_with_tool(
-        model=settings.model_visual,  # Haiku (mesmo bucket)
+        slot="text_fast",  # bucket barato
         system=SYSTEM_PROMPT,
         user=user_prompt,
         tool_name=TOOL_NAME,

@@ -7,7 +7,6 @@ foco regional, tom direto e confiável — como o portal espera.
 
 from __future__ import annotations
 
-from app.config import get_settings
 from app.db.repositories import (
     fetch_raw_item,
     insert_article,
@@ -134,14 +133,13 @@ def draft_article(
     enriched: EnrichedItem,
     persist: bool = True,
 ) -> tuple[RedatorOutput, Article | None]:
-    settings = get_settings()
     raw = fetch_raw_item(scored.raw_item_id)
     if raw is None:
         raise RuntimeError(f"raw_item {scored.raw_item_id} não encontrado")
 
     user_prompt = _build_user_prompt(scored, enriched, raw.title, raw.body, raw.url)
     result = call_with_tool(
-        model=settings.model_redator,
+        slot="text_main",
         system=SYSTEM_PROMPT,
         user=user_prompt,
         tool_name=TOOL_NAME,

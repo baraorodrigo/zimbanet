@@ -11,6 +11,9 @@ PRICING_USD_PER_MTOK: dict[str, tuple[float, float]] = {
     "claude-opus-4-7": (15.0, 75.0),
     # Aliases sem data
     "claude-haiku-4-5": (1.0, 5.0),
+    # OpenRouter — DeepSeek V4 (estimativas pra observabilidade)
+    "deepseek/deepseek-v4-flash": (0.10, 0.30),
+    "deepseek/deepseek-v4-pro": (0.43, 1.50),
 }
 
 

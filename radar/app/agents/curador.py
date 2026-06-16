@@ -7,7 +7,6 @@ use pra garantir saída estruturada.
 
 from __future__ import annotations
 
-from app.config import get_settings
 from app.db.repositories import insert_audit_log, insert_scored_item
 from app.db.types import AuditLogEntry, CuradorOutput, RawItem, ScoredItem
 from app.llm.client import call_with_tool
@@ -125,11 +124,10 @@ def _build_user_prompt(item: RawItem) -> str:
 
 def score_raw_item(item: RawItem, *, persist: bool = True) -> tuple[CuradorOutput, ScoredItem | None]:
     """Roda o Curador num RawItem. Persiste scored_item + audit_log se persist=True."""
-    settings = get_settings()
     user_prompt = _build_user_prompt(item)
 
     result = call_with_tool(
-        model=settings.model_curador,
+        slot="text_fast",
         system=SYSTEM_PROMPT,
         user=user_prompt,
         tool_name=TOOL_NAME,
