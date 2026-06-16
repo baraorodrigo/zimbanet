@@ -54,10 +54,10 @@ O documento original previa **AI Gateway** como serviço separado + **MCP server
 
 Route handlers no portal (`src/app/api/ai/`). Cada rota:
 1. Lê `Authorization: Bearer <AGENT_TOKEN>`.
-2. Resolve o agente (tabela `agents`), valida token (hash) e se está `active`.
+2. Resolve o agente (tabela `agents`), valida token (hash), e checa `active` + `revoked_at` (revogado → 401 na hora).
 3. Checa **permissão** do agente pra aquele recurso/ação (read/write scope).
 4. Valida o payload (zod).
-5. Aplica **rate limiting** por agente.
+5. Aplica **rate limiting** por agente (`rate_limit_per_hour`, contado em `agent_runs`); atualiza `last_used_at`.
 6. Executa a ação (via `createAdminClient` / Server Action / chamada ao radar).
 7. Grava **auditoria** (`agent_runs` + `audit_log`).
 8. Responde JSON padronizado `{ ok, data, error }`.
@@ -77,9 +77,11 @@ POST   /api/ai/articles/{id}/review              submit_review  (draft -> review
 # SEO (subconjunto de update, escopo restrito)
 POST   /api/ai/articles/{id}/seo                 update slug/seo_title/meta/tags
 
-# Homepage
+# Homepage  ── Fase 1 = SÓ LEITURA (escrita adiada)
 GET    /api/ai/homepage                          get_homepage
-POST   /api/ai/homepage/update                   update destaques (pin/order)
+# POST /api/ai/homepage/update  → ADIADO. Hoje não há flag de destaque em `articles`
+#   (só hero_image_*/status); o mecanismo de destaque precisa ser definido antes
+#   de liberar escrita. Risco alto de bagunçar a home — fica pra fase posterior.
 
 # Radar (proxy fino pro radar já existente)
 POST   /api/ai/radar/curador                     -> radar /agents/curador/run
@@ -88,17 +90,18 @@ POST   /api/ai/radar/redator                     -> radar /agents/redator/run
 POST   /api/ai/radar/pipeline                    -> radar /pipeline/run-all
 
 # Social
-POST   /api/ai/social/generate                   gera posts (draft)
-POST   /api/ai/social/schedule                   agenda
-# publish_social: humano confirma (mesma regra de publicação)
+POST   /api/ai/social/generate                   gera posts (draft em social_posts)
+POST   /api/ai/social/schedule                   agenda (status=scheduled)
+# publish_social → NÃO existe pra agente. Publicar nas redes = humano confirma
+#   (mesma regra da publicação de matéria). Agente no máximo deixa agendado.
 
-# Comunidade (mural ZimbaMilGrau)
+# Comunidade — tabela real `mural_posts` (modera via coluna `moderation_status`)
 GET    /api/ai/community                          list_community_posts (pendentes)
-POST   /api/ai/community/approve|reject           moderação
+POST   /api/ai/community/approve|reject           set moderation_status
 
-# Bazar
+# Bazar — tabela real `bazar_items` (modera via coluna `status`)
 GET    /api/ai/bazar                               list_bazar_posts
-POST   /api/ai/bazar/approve|reject                moderação
+POST   /api/ai/bazar/approve|reject                set status
 
 # Analytics
 GET    /api/ai/analytics/daily                     resumo diário
@@ -135,13 +138,16 @@ Config no Hermes (exemplo): apontar pra `zimbanet-mcp` com env `ZIMBANET_API_URL
 ```sql
 -- token + permissões por agente
 create table agents (
-  id          text primary key,           -- ex: 'editor_ia'
-  name        text not null,
-  type        text not null,               -- editor | seo | social | community | commercial | director
-  token_hash  text not null,               -- hash do bearer (nunca o token cru)
-  permissions jsonb not null default '{}', -- { "read": [...], "write": [...] }
-  active      boolean not null default true,
-  created_at  timestamptz not null default now()
+  id                  text primary key,            -- ex: 'editor_ia'
+  name                text not null,
+  type                text not null,                -- editor | seo | social | community | commercial | director
+  token_hash          text not null,                -- hash do bearer (nunca o token cru)
+  permissions         jsonb not null default '{}',  -- { "read": [...], "write": [...] }
+  rate_limit_per_hour int not null default 120,     -- teto de chamadas/hora por agente
+  active              boolean not null default true,
+  last_used_at        timestamptz,                  -- última chamada (detectar agente parado / token vazando)
+  revoked_at          timestamptz,                  -- se preenchido, token revogado → nega imediatamente
+  created_at          timestamptz not null default now()
 );
 
 -- auditoria/execução de cada chamada de agente
@@ -207,12 +213,14 @@ Toda chamada gera 1 linha em `agent_runs` (com tokens/custo quando aplicável) e
 - **Fase 3 — Comunidade/Bazar:** moderação.
 - **Fase 4+ — Comercial/relatórios/memes:** tabelas e rotas próprias.
 
-## 12. Pontos em aberto (pra você decidir)
+## 12. Decisões (revisão do Rodrigo — 2026-06-16)
 
-1. **Publicação:** confirmo que agente **nunca** publica (só `submit_review`), e publicar fica só no admin? (recomendo sim)
-2. **MCP local vs. hospedado:** começar local (com o Hermes) está ok? Se um dia quiser rodar agentes 24/7 sem o PC ligado, aí sim a gente hospeda.
-3. **Domínio:** o gateway usa `teste.zimbanet.com` por enquanto, certo?
-4. **Rate limit / custo:** definir teto por agente (ex.: X chamadas/dia) já na fundação?
+1. ✅ Agente **nunca publica** — matéria E redes: só `submit_review` / `schedule`. Publicar é só humano no admin.
+2. ✅ **MCP roda local** com o Hermes por ora (hospeda depois, se quiser agentes 24/7 sem o PC ligado).
+3. ✅ Gateway em **`teste.zimbanet.com`** por enquanto.
+4. ✅ **Rate limit por agente** já na fundação → coluna `rate_limit_per_hour` (default 120/h) + `last_used_at` + `revoked_at` no `agents`.
+5. ✅ **Homepage = só leitura** na Fase 1; escrita adiada (não há flag de destaque em `articles` hoje).
+6. ✅ **Nomes reais de tabela** fixados: comunidade = `mural_posts` (modera `moderation_status`) · bazar = `bazar_items` (modera `status`).
 
 ## 13. Fora de escopo (YAGNI por ora)
 - AI Gateway como serviço separado (virou rotas no portal).
