@@ -180,6 +180,10 @@ def _call_openrouter(
         # tool_choice forçado). Evita o 400 intermitente de modelos de raciocínio
         # ("tool_choice does not support object in thinking mode").
         "provider": {"require_parameters": True},
+        # Desliga o "thinking" — não usamos o raciocínio (só o JSON da tool).
+        # Em modelo de raciocínio isso corta latência (80s → ~10s) e custo;
+        # em modelo comum é ignorado.
+        "reasoning": {"enabled": False},
     }
     headers = {
         "Authorization": f"Bearer {resolved.api_key}",
