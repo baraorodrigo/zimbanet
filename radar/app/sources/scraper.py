@@ -23,7 +23,10 @@ from app.sources.video import extract_video_url
 
 log = get_logger("sources.scraper")
 
-USER_AGENT = "ZIMBANET-Radar/0.1 (+https://zimbanet.com.br)"
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
 TIMEOUT = httpx.Timeout(15.0, connect=10.0)
 MAX_ARTICLES_PER_RUN = 10
 

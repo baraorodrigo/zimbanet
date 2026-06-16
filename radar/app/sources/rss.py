@@ -30,7 +30,13 @@ log = get_logger("sources.rss")
 
 _IMG_TAG_RE = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
 _OG_FETCH_TIMEOUT = 3.0
-_OG_USER_AGENT = "ZimbanetRadar/0.1 (+https://zimbanet.com.br)"
+# UA de navegador real: vários feeds (G1, ND raiz, prefeituras) devolvem 403/HTML
+# vazio pra User-Agent de bot. Com UA de Chrome eles entregam o XML normalmente.
+_BROWSER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
+_OG_USER_AGENT = _BROWSER_UA
 
 
 def _entry_published(entry: Any) -> datetime | None:
@@ -179,7 +185,7 @@ def collect_rss(source: Source) -> list[dict[str, Any]]:
     # Default = scrapeia og:image. Source pode desligar via config.scrape_og=false
     # se for um feed conhecido por ser lento ou hostil a bot.
     scrape_og = bool(source.config.get("scrape_og", True))
-    parsed = feedparser.parse(url)
+    parsed = feedparser.parse(url, agent=_BROWSER_UA)
     if parsed.bozo and not parsed.entries:
         log.warning("rss_parse_failed", source_id=source.id, error=str(parsed.bozo_exception))
         return []

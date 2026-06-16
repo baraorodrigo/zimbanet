@@ -100,14 +100,14 @@ def run_source(source: Source) -> dict[str, Any]:
         candidates = adapter(source)
     except Exception as exc:  # noqa: BLE001
         log.error("source_adapter_failed", source_id=source.id, error=str(exc))
-        update_source_run(source.id, error=True)
+        update_source_run(source.id, error=True, status=str(exc)[:180])
         return {"source_id": source.id, "error": str(exc), "inserted": 0}
 
     fresh = _filter_new_items(candidates)
     fresh = _flag_semantic_duplicates(fresh)
     inserted = _insert_items(fresh)
 
-    update_source_run(source.id, error=False)
+    update_source_run(source.id, error=False, seen=len(candidates), status="ok")
     return {
         "source_id": source.id,
         "candidates": len(candidates),

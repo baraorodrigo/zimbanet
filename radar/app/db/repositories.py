@@ -49,17 +49,26 @@ def fetch_source_by_id(source_id: str) -> Source | None:
     return Source.model_validate(rows[0]) if rows else None
 
 
-def update_source_run(source_id: str, *, error: bool) -> None:
+def update_source_run(
+    source_id: str, *, error: bool, seen: int = 0, status: str | None = None
+) -> None:
     sb = supabase_client()
-    payload: dict[str, Any] = {"last_fetched_at": datetime.now(timezone.utc).isoformat()}
+    now = datetime.now(timezone.utc).isoformat()
+    payload: dict[str, Any] = {
+        "last_fetched_at": now,
+        "last_status": (status or ("erro" if error else "ok"))[:200],
+    }
     if error:
         # increment via select+update (sem RPC)
         cur = sb.table("sources").select("error_count").eq("id", source_id).limit(1).execute()
         rows = cur.data or []
-        if rows:
-            payload["error_count"] = (rows[0].get("error_count") or 0) + 1
+        payload["error_count"] = ((rows[0].get("error_count") if rows else 0) or 0) + 1
     else:
+        # sucesso: zera erro e grava quantos itens vieram + quando deu OK, pra o
+        # painel refletir a saúde real da fonte (antes ficava sempre 0 / nunca).
         payload["error_count"] = 0
+        payload["last_ok_at"] = now
+        payload["last_seen_items"] = seen
     sb.table("sources").update(payload).eq("id", source_id).execute()
 
 
