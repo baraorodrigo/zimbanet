@@ -90,7 +90,6 @@ function SlotCard({ slot }: { slot: SlotConfig }) {
             </span>
             <select
               name="model"
-              required
               defaultValue={slot.selectedModelId ?? ""}
               className="w-full h-11 px-3 rounded-md border-2 border-border-subtle font-mono text-fs-13 focus:outline-none focus:border-navy bg-off-white"
             >
@@ -103,6 +102,22 @@ function SlotCard({ slot }: { slot: SlotConfig }) {
                 </option>
               ))}
             </select>
+          </label>
+
+          <label className="block">
+            <span className="block text-[10px] uppercase tracking-[0.22em] font-bold text-ink-500 mb-1">
+              Ou modelo personalizado (OpenRouter)
+            </span>
+            <input
+              type="text"
+              name="custom_model"
+              placeholder="ex: deepseek/deepseek-v4-pro — cole o nome do modelo do openrouter.ai/models"
+              autoComplete="off"
+              className="w-full h-11 px-3 rounded-md border-2 border-border-subtle font-mono text-fs-13 focus:outline-none focus:border-navy bg-off-white"
+            />
+            <span className="block text-[10px] text-ink-400 mt-1">
+              Se preencher aqui, usa este em vez do menu. Vale qualquer modelo do OpenRouter (usa a chave do OpenRouter).
+            </span>
           </label>
 
           <label className="block">

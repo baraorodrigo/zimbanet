@@ -123,10 +123,16 @@ export async function saveSlotConfig(formData: FormData): Promise<void> {
   }
 
   // ── Salvar
-  const modelId = String(formData.get("model") ?? "").trim();
+  // "custom_model" (campo livre) tem prioridade sobre o menu: deixa usar
+  // QUALQUER modelo do OpenRouter. Aceita com ou sem o prefixo "openrouter:".
+  const customRaw = String(formData.get("custom_model") ?? "").trim();
+  let modelId = String(formData.get("model") ?? "").trim();
+  if (customRaw) {
+    modelId = customRaw.startsWith("openrouter:") ? customRaw : `openrouter:${customRaw}`;
+  }
   const keyRaw = String(formData.get("key") ?? "").trim();
 
-  if (!modelId) throw new Error("Escolha um modelo.");
+  if (!modelId) throw new Error("Escolha um modelo (ou cole um modelo do OpenRouter).");
   const entry = findModelEntry(slot, modelId);
   if (!entry) {
     throw new Error(`Modelo "${modelId}" não pertence ao slot "${slot}".`);

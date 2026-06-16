@@ -134,6 +134,62 @@ const TEXT_MODELS = {
     modelId: "google/gemini-2.5-flash",
   } satisfies ModelEntry,
 
+  // --- Custo-benefício (OpenRouter, jun/2026) ---
+  deepseekV4ProOR: {
+    ...OPENROUTER,
+    id: "openrouter:deepseek/deepseek-v4-pro",
+    label: "DeepSeek V4 Pro (OpenRouter) — ótimo custo/qualidade",
+    modelId: "deepseek/deepseek-v4-pro",
+  } satisfies ModelEntry,
+  deepseekV4FlashOR: {
+    ...OPENROUTER,
+    id: "openrouter:deepseek/deepseek-v4-flash",
+    label: "DeepSeek V4 Flash (OpenRouter) — barato",
+    modelId: "deepseek/deepseek-v4-flash",
+  } satisfies ModelEntry,
+  gemini35FlashOR: {
+    ...OPENROUTER,
+    id: "openrouter:google/gemini-3.5-flash",
+    label: "Gemini 3.5 Flash (OpenRouter)",
+    modelId: "google/gemini-3.5-flash",
+  } satisfies ModelEntry,
+  gemini31FlashLiteOR: {
+    ...OPENROUTER,
+    id: "openrouter:google/gemini-3.1-flash-lite",
+    label: "Gemini 3.1 Flash-Lite (OpenRouter) — ultra barato",
+    modelId: "google/gemini-3.1-flash-lite",
+  } satisfies ModelEntry,
+  qwen37MaxOR: {
+    ...OPENROUTER,
+    id: "openrouter:qwen/qwen3.7-max",
+    label: "Qwen 3.7 Max (OpenRouter)",
+    modelId: "qwen/qwen3.7-max",
+  } satisfies ModelEntry,
+  qwen37PlusOR: {
+    ...OPENROUTER,
+    id: "openrouter:qwen/qwen3.7-plus",
+    label: "Qwen 3.7 Plus (OpenRouter) — custo-benefício",
+    modelId: "qwen/qwen3.7-plus",
+  } satisfies ModelEntry,
+  qwen36FlashOR: {
+    ...OPENROUTER,
+    id: "openrouter:qwen/qwen3.6-flash",
+    label: "Qwen 3.6 Flash (OpenRouter) — barato",
+    modelId: "qwen/qwen3.6-flash",
+  } satisfies ModelEntry,
+  minimaxM3OR: {
+    ...OPENROUTER,
+    id: "openrouter:minimax/minimax-m3",
+    label: "MiniMax M3 (OpenRouter)",
+    modelId: "minimax/minimax-m3",
+  } satisfies ModelEntry,
+  mistralMedium35OR: {
+    ...OPENROUTER,
+    id: "openrouter:mistralai/mistral-medium-3.5",
+    label: "Mistral Medium 3.5 (OpenRouter)",
+    modelId: "mistralai/mistral-medium-3.5",
+  } satisfies ModelEntry,
+
   // OpenAI direto
   gpt4o: {
     ...OPENAI,
@@ -215,11 +271,16 @@ export const SLOTS: SlotMeta[] = [
   {
     id: "text_main",
     label: "Texto principal",
-    description: "Redação de matérias, drafting completo. Use modelo Sonnet/Opus/GPT-4o.",
+    description: "Redação de matérias, drafting completo. Recomendado: DeepSeek V4 Pro (custo/qualidade) ou Gemini 3.5 Flash. Ou cole qualquer modelo do OpenRouter no campo abaixo.",
     models: [
+      TEXT_MODELS.deepseekV4ProOR,
+      TEXT_MODELS.gemini35FlashOR,
+      TEXT_MODELS.qwen37MaxOR,
+      TEXT_MODELS.minimaxM3OR,
+      TEXT_MODELS.mistralMedium35OR,
+      TEXT_MODELS.claudeSonnetOR,
       TEXT_MODELS.claudeSonnetAnthropic,
       TEXT_MODELS.claudeOpusAnthropic,
-      TEXT_MODELS.claudeSonnetOR,
       TEXT_MODELS.gpt4oOR,
       TEXT_MODELS.gemini25ProOR,
       TEXT_MODELS.gpt4o,
@@ -229,10 +290,15 @@ export const SLOTS: SlotMeta[] = [
   {
     id: "text_fast",
     label: "Texto rápido",
-    description: "Auto-adapt de caption, scoring de fontes, parse de slots. Use Haiku/Mini/Flash.",
+    description: "Triagem, auto-adapt de caption, parse de slots. Recomendado: Gemini 3.1 Flash-Lite ou Qwen 3.6 Flash (baratíssimos). Ou cole qualquer modelo do OpenRouter no campo abaixo.",
     models: [
-      TEXT_MODELS.claudeHaikuAnthropic,
+      TEXT_MODELS.gemini31FlashLiteOR,
+      TEXT_MODELS.qwen36FlashOR,
+      TEXT_MODELS.qwen37PlusOR,
+      TEXT_MODELS.deepseekV4FlashOR,
+      TEXT_MODELS.minimaxM3OR,
       TEXT_MODELS.claudeHaikuOR,
+      TEXT_MODELS.claudeHaikuAnthropic,
       TEXT_MODELS.gpt4oMiniOR,
       TEXT_MODELS.gemini25FlashOR,
       TEXT_MODELS.gpt4oMini,
@@ -261,5 +327,22 @@ export function getSlot(slot: SlotId): SlotMeta {
 
 export function findModelEntry(slot: SlotId, modelId: string): ModelEntry | null {
   const s = getSlot(slot);
-  return s.models.find((m) => m.id === modelId) ?? null;
+  const found = s.models.find((m) => m.id === modelId);
+  if (found) return found;
+
+  // "Modelo personalizado": aceita QUALQUER modelo do OpenRouter, mesmo que
+  // não esteja na lista — basta o id no formato "openrouter:<slug>".
+  // Ex.: "openrouter:deepseek/deepseek-v4-pro".
+  if (modelId.startsWith("openrouter:")) {
+    const slug = modelId.slice("openrouter:".length).trim();
+    if (slug) {
+      return {
+        ...OPENROUTER,
+        id: modelId,
+        label: `${slug} (OpenRouter — personalizado)`,
+        modelId: slug,
+      };
+    }
+  }
+  return null;
 }
