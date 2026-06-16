@@ -78,6 +78,30 @@ def test_openrouter_json_fallback_from_content() -> None:
 
 
 @respx.mock
+def test_openrouter_4xx_raises_with_body() -> None:
+    respx.post(OPENROUTER_URL).mock(
+        return_value=httpx.Response(400, text='{"error":{"message":"tool_choice nao suportado"}}')
+    )
+    with (
+        patch("app.llm.client.resolve_slot", return_value=_resolved_or()),
+        pytest.raises(RuntimeError, match="tool_choice nao suportado"),
+    ):
+        _call()
+
+
+@respx.mock
+def test_openrouter_200_with_error_body_raises() -> None:
+    respx.post(OPENROUTER_URL).mock(
+        return_value=httpx.Response(200, json={"error": {"message": "provider down"}})
+    )
+    with (
+        patch("app.llm.client.resolve_slot", return_value=_resolved_or()),
+        pytest.raises(RuntimeError, match="provider down"),
+    ):
+        _call()
+
+
+@respx.mock
 def test_openrouter_raises_when_no_json() -> None:
     respx.post(OPENROUTER_URL).mock(
         return_value=httpx.Response(

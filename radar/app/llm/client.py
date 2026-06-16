@@ -176,6 +176,10 @@ def _call_openrouter(
         "tool_choice": {"type": "function", "function": {"name": tool_name}},
         "max_tokens": max_tokens,
         "temperature": temperature,
+        # Só roteia pra providers que suportam todos os params enviados (incl.
+        # tool_choice forçado). Evita o 400 intermitente de modelos de raciocínio
+        # ("tool_choice does not support object in thinking mode").
+        "provider": {"require_parameters": True},
     }
     headers = {
         "Authorization": f"Bearer {resolved.api_key}",
@@ -186,8 +190,25 @@ def _call_openrouter(
     }
     with httpx.Client(timeout=_HTTP_TIMEOUT) as client:
         resp = client.post(OPENROUTER_URL, json=payload, headers=headers)
-    resp.raise_for_status()
+
+    if resp.status_code >= 400:
+        body = resp.text[:500]
+        # 429/5xx são transitórios → deixa o retry agir. 4xx é config/payload
+        # errado → erro claro (com o corpo) pra aparecer no log e no portal.
+        if resp.status_code == 429 or 500 <= resp.status_code < 600:
+            raise httpx.HTTPStatusError(
+                f"OpenRouter {resp.status_code}: {body}",
+                request=resp.request,
+                response=resp,
+            )
+        raise RuntimeError(f"OpenRouter {resp.status_code} (modelo {resolved.model_id}): {body}")
+
     data = resp.json()
+    # OpenRouter às vezes devolve 200 com erro no corpo (falha do provider).
+    if isinstance(data, dict) and data.get("error"):
+        raise RuntimeError(
+            f"OpenRouter erro (modelo {resolved.model_id}): {str(data['error'])[:500]}"
+        )
 
     message = data["choices"][0]["message"]
     tool_calls = message.get("tool_calls")
