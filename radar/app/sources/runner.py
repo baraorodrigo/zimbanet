@@ -78,6 +78,11 @@ def _flag_semantic_duplicates(items: list[dict[str, Any]]) -> list[dict[str, Any
             it["is_duplicate"] = True
             it["duplicate_of"] = seen_in_batch[sh]
         else:
+            # Marca explicitamente como NÃO duplicado. Sem isso, num lote misto
+            # (alguns dups, outros não) o PostgREST manda is_duplicate=null pros
+            # não-marcados → viola o not-null e derruba o insert da fonte inteira.
+            it["is_duplicate"] = False
+            it["duplicate_of"] = None
             seen_in_batch[sh] = it["id"]
     return items
 
@@ -98,14 +103,13 @@ def run_source(source: Source) -> dict[str, Any]:
 
     try:
         candidates = adapter(source)
-    except Exception as exc:  # noqa: BLE001
-        log.error("source_adapter_failed", source_id=source.id, error=str(exc))
+        fresh = _filter_new_items(candidates)
+        fresh = _flag_semantic_duplicates(fresh)
+        inserted = _insert_items(fresh)
+    except Exception as exc:  # noqa: BLE001 — uma fonte ruim não pode derrubar o lote
+        log.error("source_run_failed", source_id=source.id, error=str(exc))
         update_source_run(source.id, error=True, status=str(exc)[:180])
         return {"source_id": source.id, "error": str(exc), "inserted": 0}
-
-    fresh = _filter_new_items(candidates)
-    fresh = _flag_semantic_duplicates(fresh)
-    inserted = _insert_items(fresh)
 
     update_source_run(source.id, error=False, seen=len(candidates), status="ok")
     return {

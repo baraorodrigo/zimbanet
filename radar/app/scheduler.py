@@ -41,7 +41,7 @@ log = get_logger("scheduler")
 _scheduler: AsyncIOScheduler | None = None
 
 
-def _curador_tick(batch_size: int = 5) -> None:
+def _curador_tick(batch_size: int = 30) -> None:
     """Triagem automática — só roda Curador (Haiku, barato)."""
     try:
         pending = fetch_unscored_raw_items(limit=batch_size)
