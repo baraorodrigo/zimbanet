@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { PendingSubmit } from "@/components/admin/pending-submit";
 import { EDITORIA_LABEL, type EditoriaSlug } from "@/lib/db/types";
 import { draftArticleWithAI } from "@/lib/actions/articles";
 import { Header } from "../_components/header";
@@ -412,13 +413,13 @@ function PautaCard({
         ) : (
           <form action={draftArticleWithAI} className="contents">
             <input type="hidden" name="scored_item_id" value={scored.id} />
-            <button
-              type="submit"
-              className="flex-1 h-10 rounded-md bg-zimba-gold text-navy text-[11px] uppercase tracking-[0.22em] font-bold hover:bg-navy hover:text-zimba-gold transition-colors"
+            <PendingSubmit
+              pendingLabel="Escrevendo… ~30s"
               title="Investigador + Redator em sequência. Vai pra fila como rascunho."
+              className="flex-1 h-10 rounded-md bg-zimba-gold text-navy text-[11px] uppercase tracking-[0.22em] font-bold hover:bg-navy hover:text-zimba-gold transition-colors"
             >
               ✨ Redigir com AI
-            </button>
+            </PendingSubmit>
           </form>
         )}
         <Link
