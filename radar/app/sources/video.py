@@ -26,11 +26,15 @@ from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup, Tag
 
+# Só plataformas de vídeo de verdade. Instagram FOI REMOVIDO de propósito: em
+# portal regional o IG embedado é quase sempre widget "siga no Insta" (o mesmo
+# link aparece em várias matérias) ou post de foto (/p/) — não o vídeo da
+# matéria. Dava um monte de falso "vídeo" na home. Se uma matéria for mesmo um
+# reel, o admin cola o link manualmente no editor.
 _VIDEO_HOSTS = (
     "youtube.com",
     "youtu.be",
     "youtube-nocookie.com",
-    "instagram.com",
     "tiktok.com",
 )
 
@@ -40,7 +44,6 @@ _PUBLIC_PATTERNS = (
     re.compile(r"^https?://(?:www\.)?youtube\.com/shorts/[\w-]+", re.IGNORECASE),
     re.compile(r"^https?://(?:www\.)?youtube\.com/embed/[\w-]+", re.IGNORECASE),
     re.compile(r"^https?://youtu\.be/[\w-]+", re.IGNORECASE),
-    re.compile(r"^https?://(?:www\.)?instagram\.com/(?:reel|reels|p|tv)/[\w-]+", re.IGNORECASE),
     re.compile(r"^https?://(?:www\.)?tiktok\.com/@[\w.-]+/video/\d+", re.IGNORECASE),
 )
 

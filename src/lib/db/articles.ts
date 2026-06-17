@@ -154,14 +154,15 @@ export async function getHomepageData() {
   }
 
   // Destaques: manualHighlights primeiro (já em ordem de publicação),
-  // completa com mais recentes do pool até 3.
+  // completa com mais recentes do pool até 4 (a coluna de chamadas do HeroSplit
+  // comporta 4 — evita o espaço em branco ao lado da capa).
   const highlightIds = new Set(manualHighlights.map((a) => a.id));
-  const manualPicks = manualHighlights.filter((a) => a.id !== main?.id).slice(0, 3);
+  const manualPicks = manualHighlights.filter((a) => a.id !== main?.id).slice(0, 4);
   let secondary: Article[] = [...manualPicks];
-  if (secondary.length < 3) {
+  if (secondary.length < 4) {
     const autoFill = rest
       .filter((a) => !highlightIds.has(a.id) && a.id !== main?.id)
-      .slice(0, 3 - secondary.length);
+      .slice(0, 4 - secondary.length);
     secondary = [...secondary, ...autoFill];
   }
   // Hidrata destaques manuais que não vieram no pool dos 30 mais recentes
