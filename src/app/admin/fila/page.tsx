@@ -4,10 +4,15 @@ import { EDITORIA_LABEL, type EditoriaSlug } from "@/lib/db/types";
 import { approveArticle, rejectArticle } from "@/lib/actions/articles";
 import { getArticleSourceUrls } from "@/lib/db/articles";
 import { Header } from "../_components/header";
+import { GerandoBanner } from "./gerando-banner";
 
 export const dynamic = "force-dynamic";
 
-export default async function FilaPage() {
+export default async function FilaPage({
+  searchParams,
+}: {
+  searchParams: { gerando?: string };
+}) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("articles")
@@ -32,6 +37,8 @@ export default async function FilaPage() {
             : `${items.length} matéria${items.length === 1 ? "" : "s"} pra revisar — vindas da Pauta ou criadas à mão. ${withHero} com foto · ${withoutHero} sem foto.`
         }
       />
+
+      {searchParams.gerando ? <GerandoBanner /> : null}
 
       {error && (
         <div className="mt-6 rounded-md border border-alert-red bg-alert-red/5 p-4 text-fs-14 text-alert-red">

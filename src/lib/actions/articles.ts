@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isStaff } from "@/lib/auth/admin";
 import { slugify, uniqueArticleSlug } from "@/lib/utils/slug";
 import { EDITORIA_SLUGS, type EditoriaSlug } from "@/lib/db/types";
@@ -345,31 +346,37 @@ export async function draftArticleWithAI(formData: FormData): Promise<void> {
   const scoredId = field(formData, "scored_item_id");
   if (!scoredId) throw new Error("scored_item_id ausente.");
 
-  let result;
-  try {
-    result = await draftFromScored(scoredId);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[draftArticleWithAI] falhou:", msg);
-    throw new Error("Não consegui acionar o motor IA: " + msg);
-  }
+  const actorEmail = user!.email ?? user!.id;
 
-  await audit(supabase, {
-    entity_type: "article",
-    entity_id: result.article_id,
-    action: result.reused ? "draft_with_ai_reused" : "draft_with_ai",
-    actor: user!.email ?? user!.id,
-    metadata: {
-      scored_item_id: scoredId,
-      enriched_item_id: result.enriched_item_id,
-      slug: result.slug,
-    },
-  });
+  // ASSÍNCRONO: dispara Investigador+Redator em SEGUNDO PLANO e volta NA HORA
+  // pra Fila. O processo persistente conclui a geração (~30s) e o rascunho
+  // aparece na Fila (que atualiza sozinha). Mesmo padrão fire-and-forget do
+  // maybePushBreaking — o clique não fica preso esperando o motor.
+  void draftFromScored(scoredId)
+    .then(async (result) => {
+      try {
+        const admin = createAdminClient();
+        await admin.from("audit_log").insert({
+          entity_type: "article",
+          entity_id: result.article_id,
+          action: result.reused ? "draft_with_ai_reused" : "draft_with_ai",
+          actor: actorEmail,
+          agent: "admin_ui",
+          metadata: { scored_item_id: scoredId, slug: result.slug, async: true },
+        });
+      } catch (e) {
+        console.error("[draftArticleWithAI] audit em background falhou:", e);
+      }
+    })
+    .catch((err) => {
+      console.error(
+        "[draftArticleWithAI] geração em background falhou:",
+        err instanceof Error ? err.message : String(err),
+      );
+    });
 
   revalidatePath("/admin/pauta");
-  revalidatePath("/admin/fila");
-  revalidatePath("/admin", "layout");
-  redirect(`/admin/materias/${result.article_id}`);
+  redirect("/admin/fila?gerando=1");
 }
 
 export async function rejectArticle(formData: FormData): Promise<void> {
