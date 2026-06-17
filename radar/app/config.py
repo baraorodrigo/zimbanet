@@ -30,6 +30,11 @@ class Settings(BaseSettings):
 
     schedule_enabled: bool = False
 
+    # Geração AUTOMÁTICA de rascunhos (Investigador + Redator no scheduler).
+    # OFF por padrão: o dono não quer rascunho gerado sozinho — drafts só sob
+    # demanda pelo botão "Redigir com AI". Coleta + Curador (Pauta) seguem rodando.
+    autodraft_enabled: bool = False
+
     # Auto-publish — drafts confiáveis sobem sozinhos
     autopublish_enabled: bool = False
     autopublish_min_confidence: float = 0.78

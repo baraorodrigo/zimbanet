@@ -281,24 +281,29 @@ def start_scheduler() -> AsyncIOScheduler | None:
         coalesce=True,
         replace_existing=True,
     )
-    scheduler.add_job(
-        _investigador_tick,
-        trigger=IntervalTrigger(minutes=60),
-        id="investigador_tick",
-        name="Investigador — enriquecimento (Sonnet)",
-        max_instances=1,
-        coalesce=True,
-        replace_existing=True,
-    )
-    scheduler.add_job(
-        _redator_tick,
-        trigger=IntervalTrigger(minutes=90),
-        id="redator_tick",
-        name="Redator — gera drafts (Sonnet)",
-        max_instances=1,
-        coalesce=True,
-        replace_existing=True,
-    )
+    # Geração automática de rascunhos só se autodraft_enabled. Por padrão OFF:
+    # o dono gera rascunho sob demanda ("Redigir com AI"). Assim o radar fica
+    # livre pra responder o clique na hora, em vez de ocupado enriquecendo/
+    # redigindo sozinho em segundo plano.
+    if settings.autodraft_enabled:
+        scheduler.add_job(
+            _investigador_tick,
+            trigger=IntervalTrigger(minutes=60),
+            id="investigador_tick",
+            name="Investigador — enriquecimento",
+            max_instances=1,
+            coalesce=True,
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            _redator_tick,
+            trigger=IntervalTrigger(minutes=90),
+            id="redator_tick",
+            name="Redator — gera drafts",
+            max_instances=1,
+            coalesce=True,
+            replace_existing=True,
+        )
     scheduler.add_job(
         _visual_tick,
         trigger=IntervalTrigger(minutes=120),
