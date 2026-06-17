@@ -8,48 +8,13 @@ const nextConfig = {
     serverActions: { bodySizeLimit: "52mb" },
   },
   images: {
-    // Allowlist explícito — evita que `next/image` vire proxy aberto pra
-    // qualquer host (custo de banda + risco de abuso de cache). Para liberar
-    // uma fonte regional nova, adicionar aqui e reiniciar o dev.
-    // Servidor-side fetch (downloadAndStoreImage) tem guard próprio em
-    // src/lib/storage-images.ts contra SSRF (IPs privados/loopback).
-    remotePatterns: [
-      // Supabase Storage (onde nossas imagens vivem definitivamente)
-      { protocol: "https", hostname: "*.supabase.co" },
-      { protocol: "https", hostname: "*.supabase.in" },
-
-      // Portais regionais cobertos pelo radar
-      { protocol: "https", hostname: "portalahora.com.br" },
-      { protocol: "https", hostname: "**.portalahora.com.br" },
-      { protocol: "https", hostname: "portalclicksul.com.br" },
-      { protocol: "https", hostname: "**.portalclicksul.com.br" },
-      { protocol: "https", hostname: "ndmais.com.br" },
-      { protocol: "https", hostname: "**.ndmais.com.br" },
-      { protocol: "https", hostname: "notisul.com.br" },
-      { protocol: "https", hostname: "**.notisul.com.br" },
-      { protocol: "https", hostname: "agoralaguna.com.br" },
-      { protocol: "https", hostname: "**.agoralaguna.com.br" },
-      { protocol: "https", hostname: "engeplus.com.br" },
-      { protocol: "https", hostname: "**.engeplus.com.br" },
-      { protocol: "https", hostname: "imbituba.sc.gov.br" },
-      { protocol: "https", hostname: "**.imbituba.sc.gov.br" },
-
-      // CDNs comuns usadas por WordPress, Jetpack, Cloudfront etc.
-      { protocol: "https", hostname: "*.wp.com" },
-      { protocol: "https", hostname: "*.wordpress.com" },
-      { protocol: "https", hostname: "*.cloudfront.net" },
-      { protocol: "https", hostname: "*.googleusercontent.com" },
-      { protocol: "https", hostname: "*.fbcdn.net" },
-      { protocol: "https", hostname: "*.cdninstagram.com" },
-
-      // Geração de imagem IA (Fal.ai e congêneres) — bate aqui antes de ir
-      // pro storage via downloadAndStoreImage
-      { protocol: "https", hostname: "*.fal.media" },
-      { protocol: "https", hostname: "fal.media" },
-      { protocol: "https", hostname: "*.fal.ai" },
-      { protocol: "https", hostname: "v3.fal.media" },
-      { protocol: "https", hostname: "replicate.delivery" },
-    ],
+    // ZIMBANET agrega fotos de MUITAS fontes regionais (e sempre entra fonte
+    // nova). Allowlist fixa quebrava: foto de fonte recém-adicionada não
+    // carregava (next/image devolvia 400 -> imagem quebrada na home). Liberamos
+    // qualquer host https — só URLs que o próprio site renderiza em <Image>
+    // passam pelo otimizador, e o fetch server-side (downloadAndStoreImage) já
+    // tem guard próprio de SSRF (IPs privados/loopback) em storage-images.ts.
+    remotePatterns: [{ protocol: "https", hostname: "**" }],
   },
   async headers() {
     const csp = [
