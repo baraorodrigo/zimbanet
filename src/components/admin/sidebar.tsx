@@ -26,6 +26,7 @@ const NAV: Item[] = [
   { href: "/admin/autonomo", label: "Autônomo", hint: "Scheduler do motor" },
   { href: "/admin/auditoria", label: "Auditoria", hint: "Histórico" },
   { href: "/admin/configuracoes", label: "Configurações", hint: "Modelos & chaves de IA" },
+  { href: "/admin/agentes", label: "Agentes", hint: "Tokens dos agentes (Hermes)" },
 ];
 
 // Em mobile vira drawer: barra fina com hamburger fixa no topo, sidebar
