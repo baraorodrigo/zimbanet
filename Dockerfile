@@ -66,6 +66,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# next/image precisa do sharp pra OTIMIZAR imagem em produção. Sem ele, o Next
+# serve o original (PNG de 2-3 MB) a cada acesso e loga erro — fotos lentas e
+# falhando sob carga. O deps roda --ignore-scripts e o standalone não traça o
+# binário nativo, então instalamos o sharp (com binário linux) direto no runner.
+RUN npm install --no-save --no-audit --no-fund sharp@0.33.5 \
+    && chown -R nextjs:nodejs /app/node_modules
+
 USER nextjs
 EXPOSE 3000
 
