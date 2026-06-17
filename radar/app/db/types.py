@@ -194,9 +194,12 @@ class RedatorOutput(_Base):
 class VisualOutput(_Base):
     """Saída do Visual (Haiku) — alt text + prompt p/ geração de imagem + crop."""
 
-    hero_image_alt: str = Field(min_length=10, max_length=200)
-    image_prompt: str = Field(min_length=20, max_length=600)
-    crop_hint: str = Field(default="center", max_length=40)
+    # Limites folgados: o modelo (DeepSeek) não respeita maxLength do schema e
+    # às vezes devolve alt/prompt maior — antes virava ValidationError e
+    # derrubava o finalize (500) ao publicar, perdendo a foto.
+    hero_image_alt: str = Field(min_length=10, max_length=500)
+    image_prompt: str = Field(min_length=20, max_length=2000)
+    crop_hint: str = Field(default="center", max_length=60)
 
 
 class AnalistaOutput(_Base):

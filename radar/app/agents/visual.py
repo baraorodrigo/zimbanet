@@ -53,8 +53,8 @@ Use a tool 'register_visual_brief'."""
 TOOL_SCHEMA: dict = {
     "type": "object",
     "properties": {
-        "hero_image_alt": {"type": "string", "minLength": 10, "maxLength": 200},
-        "image_prompt": {"type": "string", "minLength": 20, "maxLength": 600},
+        "hero_image_alt": {"type": "string", "minLength": 10, "maxLength": 500},
+        "image_prompt": {"type": "string", "minLength": 20, "maxLength": 2000},
         "crop_hint": {
             "type": "string",
             "enum": ["top", "center", "bottom", "left", "right"],

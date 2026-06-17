@@ -14,11 +14,17 @@ const BUCKET = "social-cards";
 const MAX_DOWNLOAD_BYTES = 15 * 1024 * 1024; // 15 MB — cobre foto de jornal sem virar bomba
 
 function extFromContentType(ct: string | null): string {
-  if (!ct) return "jpg";
+  if (!ct) return "jpeg";
   if (ct.includes("png")) return "png";
   if (ct.includes("webp")) return "webp";
   if (ct.includes("gif")) return "gif";
-  return "jpg";
+  return "jpeg";
+}
+
+// O bucket do Supabase aceita os MIME padrão. "image/jpg" NÃO é padrão (o certo
+// é "image/jpeg") e era rejeitado -> matéria publicava sem foto. Normaliza.
+function normalizeImageMime(ct: string): string {
+  return ct.trim().toLowerCase() === "image/jpg" ? "image/jpeg" : ct;
 }
 
 function videoExtFromContentType(ct: string | null): string {
@@ -127,7 +133,7 @@ export async function downloadAndStoreImage(
   const { error: upErr } = await supabase.storage
     .from(BUCKET)
     .upload(path, buf, {
-      contentType: `image/${ext}`,
+      contentType: normalizeImageMime(`image/${ext}`),
       cacheControl: "31536000",
       upsert: false,
     });
@@ -147,6 +153,7 @@ export async function storeImageBuffer(args: {
   filename?: string;
 }): Promise<string> {
   const ext = extFromContentType(args.contentType);
+  const contentType = normalizeImageMime(args.contentType);
   const stamp = Date.now();
   const safeName = args.filename
     ? args.filename.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").slice(0, 48)
@@ -157,7 +164,7 @@ export async function storeImageBuffer(args: {
   const { error: upErr } = await supabase.storage
     .from(BUCKET)
     .upload(path, args.buffer, {
-      contentType: args.contentType,
+      contentType,
       cacheControl: "31536000",
       upsert: false,
     });
