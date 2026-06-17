@@ -145,6 +145,30 @@ export async function runCollectSource(sourceId: string): Promise<CollectOneResu
   return radarFetch<CollectOneResult>(`/collect/run/${encodeURIComponent(sourceId)}`);
 }
 
+export type SubmitUrlResult = {
+  url: string;
+  raw_item_id?: string;
+  inserted?: number;
+  duplicate?: boolean;
+  scored?: boolean;
+  scored_item_id?: string | null;
+  decision?: string;
+  classification?: string;
+  editoria?: string;
+  relevance_score?: number;
+  reason?: string;
+  note?: string;
+  curador_error?: string;
+  error?: string;
+};
+
+// Envia uma URL avulsa pro radar raspar + pontuar (Curador). Cai na /admin/pauta.
+export async function submitUrlToRadar(url: string, note?: string): Promise<SubmitUrlResult> {
+  return radarFetch<SubmitUrlResult>(`/collect/submit-url`, {
+    body: JSON.stringify({ url, note: note ?? null }),
+  });
+}
+
 export type SchedulerJob = {
   id: string;
   name: string;

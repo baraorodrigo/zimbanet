@@ -1,4 +1,9 @@
 import os
+import sys
+
+# Garante que os imports locais (client, tools) funcionem independente do cwd
+# de quem lançou o processo (Hermes, uv, etc.).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mcp.server.fastmcp import FastMCP
 
@@ -56,6 +61,19 @@ def submit_review(article_id: str) -> dict:
 def run_radar(agent: str, limit: int = 5) -> dict:
     """Dispara um agente do radar. agent ∈ 'curador' | 'investigador' | 'redator' | 'pipeline'."""
     return radar_tools.run_radar(_client, agent, limit)
+
+
+@mcp.tool()
+def submit_url_to_radar(url: str, note: str = "") -> dict:
+    """Envia uma URL de reportagem (que você achou na web) pro radar do ZIMBANET.
+
+    O motor raspa título/corpo/imagem, salva como pauta bruta (fonte
+    'hermes_manual_web'), roda o Curador e o item aparece em /admin/pauta pro
+    humano decidir (redigir/investigar/rejeitar). NUNCA publica nada sozinho.
+    Use só com links de reportagens reais e relevantes pra Imbituba e região;
+    o conteúdo entra como referência/lead — a matéria é reescrita do zero depois.
+    'note' opcional: por que essa pauta importa pro morador local."""
+    return radar_tools.submit_url_to_radar(_client, url, note or None)
 
 
 @mcp.tool()

@@ -128,3 +128,71 @@ def run_all_active(limit: int | None = None) -> list[dict[str, Any]]:
     for src in sources:
         results.append(run_source(src))
     return results
+
+
+# Fonte fixa pros links que o Hermes acha na web e manda pelo MCP.
+MANUAL_SOURCE_ID = "hermes_manual_web"
+
+
+def submit_manual_url(
+    url: str, *, note: str | None = None, run_curador: bool = True
+) -> dict[str, Any]:
+    """Recebe uma URL avulsa (Hermes via MCP), raspa, deduplica, insere e roda o
+    Curador no item — pra ele cair direto na Pauta. NUNCA publica nada.
+    """
+    from app.agents.curador import score_raw_item
+    from app.db.repositories import fetch_source_by_id
+    from app.db.types import RawItem
+    from app.sources.scraper import collect_single_url
+
+    source = fetch_source_by_id(MANUAL_SOURCE_ID)
+    if source is None:
+        return {"url": url, "error": f"fonte '{MANUAL_SOURCE_ID}' não cadastrada"}
+
+    item = collect_single_url(MANUAL_SOURCE_ID, url)
+    if item is None:
+        return {"url": url, "error": "não consegui raspar título/conteúdo dessa URL"}
+
+    fresh = _filter_new_items([item])
+    if not fresh:
+        return {
+            "url": url,
+            "raw_item_id": item["id"],
+            "duplicate": True,
+            "scored": False,
+            "reason": "essa URL/conteúdo já estava no radar",
+        }
+
+    fresh = _flag_semantic_duplicates(fresh)
+    inserted = _insert_items(fresh)
+    row = fresh[0]
+    result: dict[str, Any] = {
+        "url": url,
+        "raw_item_id": row["id"],
+        "inserted": inserted,
+        "duplicate": bool(row.get("is_duplicate")),
+        "scored": False,
+    }
+    if note:
+        result["note"] = note[:300]
+
+    # Roda o Curador no item recém-inserido (a não ser que seja dup semântico).
+    if run_curador and not row.get("is_duplicate"):
+        try:
+            raw = RawItem.model_validate(row)
+            output, scored = score_raw_item(raw, persist=True)
+            result.update(
+                {
+                    "scored": True,
+                    "scored_item_id": scored.id if scored else None,
+                    "decision": output.decision.value,
+                    "classification": output.classification,
+                    "editoria": output.editoria.value,
+                    "relevance_score": output.relevance_score,
+                }
+            )
+        except Exception as exc:  # noqa: BLE001 — item já salvo; curador roda no próximo tick
+            log.error("manual_url_curador_failed", url=url, error=str(exc))
+            result["curador_error"] = str(exc)[:200]
+
+    return result

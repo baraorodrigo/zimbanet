@@ -172,3 +172,79 @@ def collect_scraper(source: Source) -> list[dict[str, Any]]:
         vid_hits=vid_hits,
     )
     return items
+
+
+def _meta_content(soup: BeautifulSoup, props: tuple[str, ...]) -> str | None:
+    """Pega o content da primeira meta tag (property OU name) que existir."""
+    for prop in props:
+        tag = soup.find("meta", attrs={"property": prop}) or soup.find(
+            "meta", attrs={"name": prop}
+        )
+        if isinstance(tag, Tag):
+            content = tag.get("content")
+            if isinstance(content, str) and content.strip():
+                return html.unescape(content.strip())
+    return None
+
+
+def _extract_body(soup: BeautifulSoup) -> str | None:
+    """Corpo do artigo: prefere <article>/<main>, junta os parágrafos longos."""
+    container = (
+        soup.find("article")
+        or soup.find(attrs={"role": "main"})
+        or soup.find("main")
+    )
+    scope = container if isinstance(container, Tag) else soup
+    paras = [p.get_text(" ", strip=True) for p in scope.find_all("p")]
+    paras = [p for p in paras if len(p) > 30]  # descarta legenda/menu/rodapé curto
+    body = "\n\n".join(paras).strip()
+    return body[:8000] if body else None
+
+
+def scrape_article(url: str) -> dict[str, Any] | None:
+    """Raspa UMA URL de reportagem → título/corpo/imagem/vídeo.
+
+    Usado pelo envio manual de link (Hermes via MCP). Diferente de
+    `collect_scraper`, que percorre uma listagem de fonte por selectors.
+    Retorna None se não conseguir nem o título.
+    """
+    page = _fetch(url)
+    if not page:
+        return None
+    soup = BeautifulSoup(page, "lxml")
+
+    title = _meta_content(soup, ("og:title", "twitter:title")) or ""
+    if not title:
+        el = soup.find("h1") or soup.find("title")
+        if el:
+            title = el.get_text(strip=True)
+    title = (title or "").strip()
+    if not title:
+        log.warning("scrape_article_no_title", url=url)
+        return None
+
+    body = _extract_body(soup)
+    image_url = _from_meta_image(soup)
+    video_url = extract_video_url(soup)
+    log.info("scrape_article_ok", url=url, has_body=bool(body), has_img=bool(image_url))
+    return {"title": title[:500], "body": body, "image_url": image_url, "video_url": video_url}
+
+
+def collect_single_url(source_id: str, url: str) -> dict[str, Any] | None:
+    """Monta o dict de raw_item (com hashes) a partir de uma URL avulsa."""
+    art = scrape_article(url)
+    if art is None:
+        return None
+    ch = content_hash(url, art["title"])
+    sh = semantic_hash(art["title"], art["body"])
+    return {
+        "id": make_raw_id(source_id, ch),
+        "source_id": source_id,
+        "title": art["title"],
+        "body": art["body"],
+        "url": url,
+        "image_url": art["image_url"],
+        "video_url": art["video_url"],
+        "content_hash": ch,
+        "semantic_hash": sh,
+    }
