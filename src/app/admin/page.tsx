@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { EDITORIA_LABEL, type EditoriaSlug } from "@/lib/db/types";
@@ -15,38 +16,20 @@ import { Header } from "./_components/header";
 export const dynamic = "force-dynamic";
 
 async function counts() {
+  // Uma chamada agregada (RPC) em vez de 9 count:"exact" — 1 round-trip.
   const supabase = createClient();
-  const [
-    draft,
-    review,
-    published,
-    rejected,
-    sources,
-    socialPending,
-    rawUnscored,
-    scoredApproved,
-    enrichedNoArticle,
-  ] = await Promise.all([
-    supabase.from("articles").select("*", { count: "exact", head: true }).eq("status", "draft"),
-    supabase.from("articles").select("*", { count: "exact", head: true }).eq("status", "review"),
-    supabase.from("articles").select("*", { count: "exact", head: true }).eq("status", "published"),
-    supabase.from("articles").select("*", { count: "exact", head: true }).eq("status", "rejected"),
-    supabase.from("sources").select("*", { count: "exact", head: true }).eq("active", true),
-    supabase.from("social_posts").select("*", { count: "exact", head: true }).eq("status", "pending"),
-    supabase.from("raw_items").select("*", { count: "exact", head: true }).eq("is_duplicate", false),
-    supabase.from("scored_items").select("*", { count: "exact", head: true }).in("status", ["scored"]).eq("decision", "approve"),
-    supabase.from("enriched_items").select("*", { count: "exact", head: true }),
-  ]);
+  const { data } = await supabase.rpc("admin_dashboard_counts");
+  const c = (data ?? {}) as Record<string, number>;
   return {
-    draft: draft.count ?? 0,
-    review: review.count ?? 0,
-    published: published.count ?? 0,
-    rejected: rejected.count ?? 0,
-    sources: sources.count ?? 0,
-    socialPending: socialPending.count ?? 0,
-    rawUnscored: rawUnscored.count ?? 0,
-    scoredApproved: scoredApproved.count ?? 0,
-    enrichedNoArticle: enrichedNoArticle.count ?? 0,
+    draft: c.draft ?? 0,
+    review: c.review ?? 0,
+    published: c.published ?? 0,
+    rejected: c.rejected ?? 0,
+    sources: c.sources ?? 0,
+    socialPending: c.socialPending ?? 0,
+    rawUnscored: c.rawUnscored ?? 0,
+    scoredApproved: c.scoredApproved ?? 0,
+    enrichedNoArticle: c.enrichedNoArticle ?? 0,
   };
 }
 
@@ -60,18 +43,80 @@ async function recent() {
   return data ?? [];
 }
 
-async function schedulerSnapshot() {
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("timeout")), ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
+// Status do motor (radar) carregado FORA do caminho crítico: a página abre na
+// hora e este card entra via streaming (Suspense). Timeout curto pra que um
+// radar lento/fora do ar nunca trave o dashboard inteiro.
+async function MotorStatusCard() {
+  let motorRodando = false;
+  let jobs = 0;
   try {
-    return await getSchedulerStatus();
+    const sched = await withTimeout(getSchedulerStatus(), 4000);
+    motorRodando = sched?.running ?? false;
+    jobs = sched?.jobs.length ?? 0;
   } catch {
-    return null;
+    /* radar lento/fora — mostra como parado, sem travar a página */
   }
+  return (
+    <Link
+      href="/admin/autonomo"
+      className={`mt-6 flex items-center gap-3 rounded-md border-2 p-4 transition-colors ${
+        motorRodando
+          ? "border-eco-green bg-eco-green/5 hover:bg-eco-green/10"
+          : "border-alert-red/60 bg-alert-red/5 hover:bg-alert-red/10"
+      }`}
+    >
+      <span className={`relative flex h-3 w-3 shrink-0 ${motorRodando ? "" : "opacity-60"}`}>
+        {motorRodando && (
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-eco-green opacity-75" />
+        )}
+        <span
+          className={`relative inline-flex h-3 w-3 rounded-full ${
+            motorRodando ? "bg-eco-green" : "bg-alert-red"
+          }`}
+        />
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="font-display font-black text-fs-15 text-navy leading-tight">
+          {motorRodando ? "Motor autônomo rodando" : "Motor autônomo parado"}
+        </p>
+        <p className="text-fs-12 text-ink-700 mt-0.5">
+          {motorRodando
+            ? `${jobs} ticks ativos — Coletor, Curador, Investigador, Redator em loop. Você não precisa apertar botão nenhum.`
+            : "Os ticks não estão rodando. Abra o módulo autônomo pra ligar."}
+        </p>
+      </div>
+      <span className="text-[10px] uppercase tracking-[0.22em] font-bold text-zimba-gold">
+        Abrir →
+      </span>
+    </Link>
+  );
+}
+
+function MotorStatusSkeleton() {
+  return (
+    <div className="mt-6 h-[76px] rounded-md border-2 border-border-subtle bg-white animate-pulse" />
+  );
 }
 
 export default async function AdminHome() {
-  const [c, items, sched] = await Promise.all([counts(), recent(), schedulerSnapshot()]);
+  const [c, items] = await Promise.all([counts(), recent()]);
   const fila = c.draft + c.review;
-  const motorRodando = sched?.running ?? false;
   return (
     <>
       <Header
@@ -82,42 +127,9 @@ export default async function AdminHome() {
         }.`}
       />
 
-      <Link
-        href="/admin/autonomo"
-        className={`mt-6 flex items-center gap-3 rounded-md border-2 p-4 transition-colors ${
-          motorRodando
-            ? "border-eco-green bg-eco-green/5 hover:bg-eco-green/10"
-            : "border-alert-red/60 bg-alert-red/5 hover:bg-alert-red/10"
-        }`}
-      >
-        <span
-          className={`relative flex h-3 w-3 shrink-0 ${motorRodando ? "" : "opacity-60"}`}
-        >
-          {motorRodando && (
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-eco-green opacity-75" />
-          )}
-          <span
-            className={`relative inline-flex h-3 w-3 rounded-full ${
-              motorRodando ? "bg-eco-green" : "bg-alert-red"
-            }`}
-          />
-        </span>
-        <div className="flex-1 min-w-0">
-          <p className="font-display font-black text-fs-15 text-navy leading-tight">
-            {motorRodando
-              ? "Motor autônomo rodando"
-              : "Motor autônomo parado"}
-          </p>
-          <p className="text-fs-12 text-ink-700 mt-0.5">
-            {motorRodando
-              ? `${sched?.jobs.length ?? 0} ticks ativos — Coletor, Curador, Investigador, Redator em loop. Você não precisa apertar botão nenhum.`
-              : "Os ticks não estão rodando. Abra o módulo autônomo pra ligar."}
-          </p>
-        </div>
-        <span className="text-[10px] uppercase tracking-[0.22em] font-bold text-zimba-gold">
-          Abrir →
-        </span>
-      </Link>
+      <Suspense fallback={<MotorStatusSkeleton />}>
+        <MotorStatusCard />
+      </Suspense>
 
       <section className="mt-8 grid grid-cols-2 lg:grid-cols-6 gap-3">
         <Stat label="Em fila" value={fila} accent="gold" href="/admin/fila" />
@@ -197,7 +209,7 @@ export default async function AdminHome() {
           <PipelineStep
             n={2}
             title="Curar"
-            sub="Score Haiku, decide pauta"
+            sub="Score (DeepSeek), decide pauta"
             badge={`${c.rawUnscored} brutos`}
             action={triggerCurador}
             label="Rodar Curador"
@@ -206,7 +218,7 @@ export default async function AdminHome() {
           <PipelineStep
             n={3}
             title="Investigar"
-            sub="Sonnet enriquece"
+            sub="DeepSeek enriquece"
             badge={`${c.scoredApproved} aprov.`}
             action={triggerInvestigador}
             label="Rodar Investigador"
@@ -215,7 +227,7 @@ export default async function AdminHome() {
           <PipelineStep
             n={4}
             title="Redigir"
-            sub="Sonnet escreve draft"
+            sub="DeepSeek escreve draft"
             badge={`${c.enrichedNoArticle} brief.`}
             action={triggerRedator}
             label="Rodar Redator"
@@ -224,7 +236,7 @@ export default async function AdminHome() {
           <PipelineStep
             n={5}
             title="Analisar"
-            sub="Haiku revisa publicadas"
+            sub="DeepSeek revisa publicadas"
             badge={`${c.published} pub.`}
             action={triggerAnalista}
             label="Rodar Analista"

@@ -47,17 +47,12 @@ export default async function FontesPage() {
 
   const items = (data ?? []) as SourceRow[];
 
-  // Conta itens coletados por fonte (volume + trava o delete)
+  // Itens coletados por fonte numa query agregada só (em vez de 1 count por fonte).
   const countsByid: Record<string, number> = {};
-  await Promise.all(
-    items.map(async (s) => {
-      const { count } = await supabase
-        .from("raw_items")
-        .select("*", { count: "exact", head: true })
-        .eq("source_id", s.id);
-      countsByid[s.id] = count ?? 0;
-    }),
-  );
+  const { data: rawCounts } = await supabase.rpc("raw_counts_by_source");
+  for (const row of (rawCounts ?? []) as Array<{ source_id: string; n: number }>) {
+    countsByid[row.source_id] = Number(row.n);
+  }
 
   // Hit rate de foto nos últimos 7 dias — pra detectar fontes que param
   // de mandar foto sem precisar abrir Supabase. Uma query só, agrega em JS.

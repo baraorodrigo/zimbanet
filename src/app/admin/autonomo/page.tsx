@@ -22,31 +22,31 @@ const JOB_PRESET: Record<
   },
   curador_tick: {
     title: "Curador",
-    sub: "Triagem com Haiku — decide pauta",
+    sub: "Triagem (DeepSeek) — decide pauta",
     cost: "low",
     emoji: "🧭",
   },
   investigador_tick: {
     title: "Investigador",
-    sub: "Sonnet enriquece notícias aprovadas",
+    sub: "DeepSeek enriquece notícias aprovadas",
     cost: "high",
     emoji: "🔎",
   },
   redator_tick: {
     title: "Redator",
-    sub: "Sonnet escreve drafts pra fila",
+    sub: "DeepSeek escreve drafts pra fila",
     cost: "high",
     emoji: "✍️",
   },
   visual_tick: {
     title: "Visual",
-    sub: "Haiku gera alt-text + briefing de imagem",
+    sub: "Gera alt-text + briefing de imagem",
     cost: "low",
     emoji: "🎨",
   },
   analista_tick: {
     title: "Analista",
-    sub: "Haiku faz review pós-publish",
+    sub: "Faz review pós-publish",
     cost: "low",
     emoji: "📊",
   },
@@ -66,7 +66,13 @@ async function loadStatus(): Promise<{
   error: string | null;
 }> {
   try {
-    const status = await getSchedulerStatus();
+    // Timeout curto: um radar lento/reiniciando não pode travar a página.
+    const status = await Promise.race([
+      getSchedulerStatus(),
+      new Promise<SchedulerStatus>((_, reject) =>
+        setTimeout(() => reject(new Error("radar não respondeu a tempo")), 5000),
+      ),
+    ]);
     return { status, error: null };
   } catch (e) {
     return { status: null, error: e instanceof Error ? e.message : String(e) };

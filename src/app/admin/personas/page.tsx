@@ -9,18 +9,13 @@ export const dynamic = "force-dynamic";
 export default async function PersonasPage() {
   const personas = await listAllPersonas();
 
-  // Conta matérias por persona (mostra volume + trava o delete)
+  // Matérias por persona numa query agregada só (em vez de 1 count por persona).
   const admin = createAdminClient();
   const counts: Record<string, number> = {};
-  await Promise.all(
-    personas.map(async (p) => {
-      const { count } = await admin
-        .from("articles")
-        .select("*", { count: "exact", head: true })
-        .eq("persona_id", p.id);
-      counts[p.id] = count ?? 0;
-    }),
-  );
+  const { data: personaCounts } = await admin.rpc("article_counts_by_persona");
+  for (const row of (personaCounts ?? []) as Array<{ persona_id: string; n: number }>) {
+    counts[row.persona_id] = Number(row.n);
+  }
 
   const active = personas.filter((p) => p.is_active);
   const inactive = personas.filter((p) => !p.is_active);
