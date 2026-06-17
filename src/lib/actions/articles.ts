@@ -507,19 +507,24 @@ export async function deleteArticle(formData: FormData): Promise<void> {
   const id = field(formData, "id");
   if (!id) throw new Error("ID ausente.");
 
-  const { data, error } = await supabase
+  // Usa service role: a exclusão ignora RLS (a ação já validou isStaff) e
+  // funciona sempre. maybeSingle evita erro se a linha já não existir.
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("articles")
     .delete()
     .eq("id", id)
     .select("slug, editoria")
-    .single();
+    .maybeSingle();
   if (error) throw new Error(error.message);
 
-  await audit(supabase, {
+  await admin.from("audit_log").insert({
     entity_type: "article",
     entity_id: id,
     action: "delete",
     actor: user!.email ?? user!.id,
+    agent: "admin_ui",
+    metadata: {},
   });
 
   if (data) revalidateArticle(data.slug as string, data.editoria as string);
