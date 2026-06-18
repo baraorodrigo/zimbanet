@@ -91,6 +91,15 @@ def submit_review(article_id: str) -> dict:
 
 
 @mcp.tool()
+def definir_imagem(article_id: str, image_url: str, alt: str = "") -> dict:
+    """Define a foto de capa (hero) de um rascunho a partir de uma URL de imagem.
+    O ZIMBANET baixa a imagem e guarda no próprio Storage (não fica dependendo do
+    link externo, que pode quebrar). Só funciona em rascunho/revisão. 'alt' =
+    descrição acessível da foto (recomendado). Use imagens com direito de uso."""
+    return articles_tools.set_hero(_client, article_id, image_url, alt or None)
+
+
+@mcp.tool()
 def run_radar(agent: str, limit: int = 5) -> dict:
     """Dispara um agente do radar. agent ∈ 'curador' | 'investigador' | 'redator' | 'pipeline'."""
     return radar_tools.run_radar(_client, agent, limit)

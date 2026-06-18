@@ -24,3 +24,11 @@ def update_seo(client: ZimbanetClient, article_id: str, slug: str | None = None,
 
 def submit_review(client: ZimbanetClient, article_id: str) -> dict:
     return client.post(f"/api/ai/articles/{article_id}/review")
+
+
+def set_hero(
+    client: ZimbanetClient, article_id: str, image_url: str, alt: str | None = None
+) -> dict:
+    return client.post(
+        f"/api/ai/articles/{article_id}/hero", {"image_url": image_url, "alt": alt}
+    )
