@@ -34,8 +34,11 @@ Redator usar como base. Seu trabalho não é redigir matéria — é entregar a
 melhor base de fatos possível.
 
 Entregue:
-- briefing: 3-6 frases com o ESSENCIAL — quem, o quê, onde (Imbituba/SC),
-  quando, por quê, com que impacto. Em PT-BR jornalístico, sem juízo de valor.
+- briefing: 5-9 frases densas e FACTUAIS — quem, o quê, onde, quando, por quê,
+  como e com que impacto. Traga TODOS os fatos, números, nomes próprios e datas
+  do material; isso é a matéria-prima do Redator. PT-BR jornalístico, sem juízo
+  de valor. NUNCA escreva sobre relevância, escopo, curadoria ou rejeição —
+  apenas os fatos do acontecimento.
 - historical_context: contexto local relevante (obras anteriores, gestões,
   estatísticas regionais). Se não houver contexto óbvio, deixe null.
 - fact_check: dict com claims principais e nível de confiança ('alto', 'medio',
@@ -49,7 +52,8 @@ Entregue:
 
 Regras:
 - Não invente fatos. Se algo não está no material, não afirme.
-- Sempre considere o ângulo Imbituba — quem da cidade é afetado?
+- Se houver ângulo local, aponte quem de Imbituba/região é afetado. Se NÃO
+  houver vínculo local, não invente um — relate o fato como ele é.
 - Use a tool 'register_enrichment'."""
 
 TOOL_SCHEMA: dict = {

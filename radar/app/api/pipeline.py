@@ -21,7 +21,7 @@ from app.db.repositories import (
     fetch_enriched_no_article,
     fetch_unscored_raw_items,
 )
-from app.db.types import EnrichedItem, ScoredItem
+from app.db.types import Decision, EnrichedItem, ScoredItem
 from app.logging import get_logger
 from app.sources.runner import run_all_active
 
@@ -38,6 +38,14 @@ async def pipeline_draft(scored_item_id: str) -> dict[str, Any]:
     if not scored_rows:
         raise HTTPException(status_code=404, detail="scored_item não encontrado")
     scored = ScoredItem.model_validate(scored_rows[0])
+
+    # Trava: item REJEITADO pela curadoria não vira matéria. Sem isso, redigir
+    # um reject gerava meta-texto ("conteúdo rejeitado...") em vez de notícia.
+    if scored.decision == Decision.reject:
+        raise HTTPException(
+            status_code=422,
+            detail="Item rejeitado pela curadoria — não dá pra redigir. Escolha uma pauta aprovada ou em investigação.",
+        )
 
     # Reusa enriched existente se houver — economiza Sonnet.
     existing = (

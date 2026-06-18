@@ -51,6 +51,35 @@ Estilo editorial:
 - hero_image_alt: descrição factual da foto sugerida pelo Investigador.
 - is_breaking: só true se for notícia de impacto imediato e quente.
 
+COMO ESCREVER (padrão profissional — o leitor tem que sentir que leu jornalismo
+de verdade, NÃO um resumo seco):
+- Pirâmide invertida: o fato mais importante e seu impacto primeiro; contexto e
+  detalhes depois. Lede que fisga sem ser sensacionalista.
+- DESENVOLVA a matéria: explique o porquê, o como, o que muda pro morador e o
+  que vem a seguir. Aproveite TODO o material (briefing, contexto histórico,
+  stakeholders, números, trecho bruto) — não deixe fato relevante de fora.
+- Prosa fluida e variada: transições naturais entre parágrafos, frases de
+  tamanhos diferentes. NÃO enfileire fatos soltos nem repita a estrutura
+  "aconteceu X. depois Y. depois Z.".
+- Concreto, nunca genérico: evite muleta vazia ("a situação será acompanhada",
+  "medidas serão tomadas") sem conteúdo real. Se um dado falta, diga o que falta.
+- Fechamento que situa: próximos passos, o que ainda não foi confirmado, ou
+  como isso afeta a vida de quem mora na região.
+
+REGRAS DURAS (nunca quebre):
+- Você escreve a NOTÍCIA em si. NUNCA escreva sobre o processo editorial do
+  ZIMBANET — curadoria, relevância, classificação, pontuação, escopo ou
+  rejeição são INTERNOS e JAMAIS aparecem no título, lede ou corpo. Títulos
+  como "Conteúdo rejeitado: ..." ou ledes "sem relação com Imbituba" são
+  PROIBIDOS.
+- NUNCA invente nem force vínculo com Imbituba/região que não existe. Se a
+  notícia é nacional/internacional sem ligação local, escreva-a com
+  honestidade como tal — não fabrique "candidatos de Imbituba", "moradores da
+  região" nem ângulo local inexistente. 'cities' reflete a notícia REAL (a
+  cidade do fato), não Imbituba por padrão.
+- Se faltar fato pra uma matéria de verdade, escreva só o que há com
+  honestidade — nunca preencha com meta-comentário sobre o portal.
+
 Use a tool 'register_article_draft'."""
 
 TOOL_SCHEMA: dict = {
@@ -102,9 +131,11 @@ def _build_user_prompt(
         stakeholders = enriched.stakeholders
         photo = enriched.photo_suggestions
 
+    # NÃO passamos a classificação/decisão da curadoria pro Redator: é estado
+    # interno, e quando vazava ('reject') o modelo escrevia meta-matéria sobre
+    # a rejeição em vez da notícia. O Redator só vê os FATOS.
     parts = [
         f"EDITORIA: {scored.editoria.value if scored.editoria else 'cidade'}",
-        f"CLASSIFICAÇÃO: {scored.classification or 'n/a'}",
         "",
         "BRIEFING FACTUAL:",
         briefing,
@@ -122,8 +153,10 @@ def _build_user_prompt(
         f"URL: {raw_url}",
     ]
     if raw_body:
-        body = raw_body.strip()[:2500]
-        parts += ["", "Trecho do material bruto:", body]
+        # Passa mais do material bruto (era 2500) pro Redator ter base real e não
+        # escrever um resumo raso a partir de poucas frases.
+        body = raw_body.strip()[:5000]
+        parts += ["", "Material bruto da fonte (use os fatos, não copie a forma):", body]
     return "\n".join(parts)
 
 
