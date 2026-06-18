@@ -52,6 +52,39 @@ def update_seo(article_id: str, slug: str | None = None, tags: list | None = Non
 
 
 @mcp.tool()
+def create_article(
+    title: str,
+    body: str,
+    kicker: str = "",
+    subtitle: str = "",
+    lede: str = "",
+    byline: str = "ZIMBANET",
+    tags: list = None,
+    cities: list = None,
+    slug: str = "",
+    editorial: str = "",
+    reading_minutes: int = 5,
+) -> dict:
+    """Cria um novo rascunho de matéria no ZIMBANET. SEMPRE cria como draft — nunca publica.
+    Use quando o usuário pedir 'criar matéria', 'postar artigo', 'publicar no site'."""
+    payload = {
+        "title": title,
+        "body": body,
+        "kicker": kicker,
+        "subtitle": subtitle,
+        "lede": lede,
+        "byline": byline,
+        "tags": tags or [],
+        "cities": cities or [],
+        "slug": slug,
+        "editorial": editorial,
+        "reading_minutes": reading_minutes,
+        "status": "draft",
+    }
+    return _client.post("/api/ai/articles", payload)
+
+
+@mcp.tool()
 def submit_review(article_id: str) -> dict:
     """Manda o rascunho pra REVISÃO HUMANA. É o máximo que o agente faz — publicar é só o humano."""
     return articles_tools.submit_review(_client, article_id)
