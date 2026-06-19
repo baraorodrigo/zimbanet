@@ -30,12 +30,46 @@ export const POST = withAgent(
       );
     }
 
-    const { data: cur } = await sb.from("articles").select("status").eq("id", id).maybeSingle();
+    const { data: cur } = await sb
+      .from("articles")
+      .select("status, source_url, scored_item_id, hero_image_url")
+      .eq("id", id)
+      .maybeSingle();
     if (!cur) return NextResponse.json({ ok: false, error: "matéria não encontrada" }, { status: 404 });
     if (!["draft", "review", "scheduled"].includes(cur.status)) {
       return NextResponse.json(
         { ok: false, error: `só rascunho/revisão/agendada publica (status: ${cur.status})` },
         { status: 409 },
+      );
+    }
+
+    // TRAVA ANTI-NOTÍCIA-VELHA: o agente não publica matéria sem origem
+    // rastreável. Toda matéria precisa vir de uma reportagem real e atual —
+    // ou foi raspada pelo radar (tem scored_item_id) ou tem uma fonte (source_url).
+    // Sem isso, é texto escrito "de cabeça" (risco de fato antigo/inventado).
+    const hasSource =
+      Boolean(cur.scored_item_id) ||
+      Boolean(cur.source_url && String(cur.source_url).trim());
+    if (!hasSource) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "matéria sem fonte rastreável não publica. Toda matéria precisa vir de uma reportagem REAL e ATUAL: use submit_url_to_radar (você acha a URL, o radar raspa) ou anexe a fonte antes de publicar. NUNCA escreva de memória.",
+        },
+        { status: 422 },
+      );
+    }
+
+    // TRAVA SEM FOTO: matéria sem imagem de capa não publica.
+    if (!cur.hero_image_url || !String(cur.hero_image_url).trim()) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "matéria sem foto não publica. Defina a imagem de capa com definir_imagem (passe a URL de uma foto real da reportagem) antes de publicar.",
+        },
+        { status: 422 },
       );
     }
 
