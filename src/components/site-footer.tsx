@@ -53,19 +53,19 @@ export default function SiteFooter() {
           </p>
           <div className="mt-5 flex items-center gap-3 text-off-white/70">
             <a
-              href="https://instagram.com/bombei_imbituba"
+              href="https://instagram.com/zimbanet"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Instagram @bombei_imbituba"
+              aria-label="Instagram @zimbanet"
               className="hover:text-zimba-gold"
             >
               <Icon name="instagram" size={18} />
             </a>
             <a
-              href="https://facebook.com/bombei.imbituba"
+              href="https://facebook.com/zimbanet"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Facebook @bombei.imbituba"
+              aria-label="Facebook @zimbanet"
               className="hover:text-zimba-gold"
             >
               <Icon name="facebook" size={18} />

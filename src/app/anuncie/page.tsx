@@ -27,7 +27,7 @@ export default function AnunciePage() {
         </div>
         <div className="rounded-md bg-white border border-border-subtle p-5">
           <p className="text-[10px] uppercase tracking-[0.22em] font-bold text-zimba-gold mb-2">Origem</p>
-          <p className="font-display text-fs-22 font-black text-navy leading-tight mb-1">@bombei_imbituba</p>
+          <p className="font-display text-fs-22 font-black text-navy leading-tight mb-1">@zimbanet</p>
           <p className="text-fs-13 text-ink-500">evolução do canal que a cidade já acompanha</p>
         </div>
       </div>

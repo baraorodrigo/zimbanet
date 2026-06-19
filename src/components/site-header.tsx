@@ -72,20 +72,20 @@ export default async function SiteHeader() {
           </div>
           <div className="hidden md:flex items-center gap-3.5 text-off-white/75">
             <a
-              href="https://instagram.com/bombei_imbituba"
+              href="https://instagram.com/zimbanet"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-zimba-gold transition-colors"
-              aria-label="Instagram @bombei_imbituba"
+              aria-label="Instagram @zimbanet"
             >
               <Icon name="instagram" size={14} />
             </a>
             <a
-              href="https://facebook.com/bombei.imbituba"
+              href="https://facebook.com/zimbanet"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-zimba-gold transition-colors"
-              aria-label="Facebook @bombei.imbituba"
+              aria-label="Facebook @zimbanet"
             >
               <Icon name="facebook" size={14} />
             </a>
