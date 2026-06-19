@@ -225,7 +225,8 @@ async function fetchManualCover(): Promise<Article | null> {
   }
 }
 
-// Destaques fixados — `is_highlight=true`, até 3 mais recentes.
+// Destaques fixados — `is_highlight=true`, até 4 mais recentes (a coluna de
+// chamadas do HeroSplit comporta 4; antes o limite 3 ignorava um 4º fixado).
 async function fetchManualHighlights(): Promise<Article[]> {
   try {
     const supabase = createClient();
@@ -235,7 +236,7 @@ async function fetchManualHighlights(): Promise<Article[]> {
       .eq("status", "published")
       .eq("is_highlight", true)
       .order("published_at", { ascending: false })
-      .limit(3);
+      .limit(4);
     return (data ?? []).map((r) => toViewArticle(r as ArticleRow));
   } catch {
     return [];
