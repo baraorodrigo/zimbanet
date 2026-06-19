@@ -153,11 +153,12 @@ export async function getHomepageData() {
     rest = real.slice(1);
   }
 
-  // Destaques: manualHighlights primeiro (já em ordem de publicação),
-  // completa com mais recentes do pool até 4 (a coluna de chamadas do HeroSplit
-  // comporta 4 — evita o espaço em branco ao lado da capa).
+  // Destaques: até 2 fixados manualmente + completa com os mais recentes até 4.
+  // O cap de 2 é proposital: garante que a home SEMPRE mostre matérias frescas
+  // nos destaques, mesmo que sobrem fixações antigas (antes, 4 fixadas travavam
+  // todas as vagas e as novas — inclusive as do agente — nunca apareciam).
   const highlightIds = new Set(manualHighlights.map((a) => a.id));
-  const manualPicks = manualHighlights.filter((a) => a.id !== main?.id).slice(0, 4);
+  const manualPicks = manualHighlights.filter((a) => a.id !== main?.id).slice(0, 2);
   let secondary: Article[] = [...manualPicks];
   if (secondary.length < 4) {
     const autoFill = rest

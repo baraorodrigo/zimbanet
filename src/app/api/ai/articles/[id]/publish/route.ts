@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { withAgent } from "@/lib/ai/with-agent";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { finalizeArticle } from "@/lib/radar";
@@ -65,6 +66,12 @@ export const POST = withAgent(
     finalizeArticle(id).catch((e: Error) =>
       console.warn("[agent publish] finalize falhou:", e.message),
     );
+
+    // Atualiza a home na hora (sem isso a matéria do agente ficava presa no
+    // cache ISR de 60s e não subia pra capa/destaques). Espelha o publish humano.
+    revalidatePath("/", "layout");
+    revalidatePath(`/${data.editoria}`);
+    revalidatePath(`/${data.editoria}/${data.slug}`);
 
     return NextResponse.json({ ok: true, data });
   },

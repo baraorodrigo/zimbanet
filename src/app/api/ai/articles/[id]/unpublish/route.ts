@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { withAgent } from "@/lib/ai/with-agent";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -33,6 +34,12 @@ export const POST = withAgent(
       agent: "hermes",
       metadata: { slug: data.slug },
     });
+
+    // Tira da home na hora (capa/destaques/editoria).
+    revalidatePath("/", "layout");
+    revalidatePath(`/${data.editoria}`);
+    revalidatePath(`/${data.editoria}/${data.slug}`);
+
     return NextResponse.json({ ok: true, data });
   },
 );
