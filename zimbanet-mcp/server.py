@@ -10,6 +10,7 @@ from mcp.server.fastmcp import FastMCP
 from client import ZimbanetClient
 from tools import analytics as analytics_tools
 from tools import articles as articles_tools
+from tools import community as community_tools
 from tools import radar as radar_tools
 from tools.ping import ping as ping_tool
 
@@ -122,6 +123,32 @@ def submit_url_to_radar(url: str, note: str = "") -> dict:
 def daily_report() -> dict:
     """Resumo diário: publicadas hoje, rascunhos na fila, distribuição da pauta, coletadas hoje."""
     return analytics_tools.daily_report(_client)
+
+
+@mcp.tool()
+def list_mural(moderation_status: str = "pending", limit: int = 50) -> dict:
+    """Lista posts do mural #ZimbaMilGrau pra moderação. moderation_status ∈
+    'pending' (a moderar) | 'approved' | 'rejected'."""
+    return community_tools.list_mural(_client, moderation_status, limit)
+
+
+@mcp.tool()
+def moderate_mural(post_id: str, decision: str) -> dict:
+    """Modera um post do mural. decision='approve' publica; 'reject' remove.
+    Regra: NUNCA aprove denúncia grave, exposição de menor ou acusação sem revisão humana."""
+    return community_tools.moderate_mural(_client, post_id, decision)
+
+
+@mcp.tool()
+def list_bazar(status: str = "pending", limit: int = 50) -> dict:
+    """Lista classificados #BazarDaZimba pra moderação. status ∈ 'pending' | 'active' | 'removed'."""
+    return community_tools.list_bazar(_client, status, limit)
+
+
+@mcp.tool()
+def moderate_bazar(item_id: str, decision: str) -> dict:
+    """Modera um classificado. decision='approve' ativa; 'reject' remove (spam/golpe)."""
+    return community_tools.moderate_bazar(_client, item_id, decision)
 
 
 if __name__ == "__main__":
