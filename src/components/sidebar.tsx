@@ -69,15 +69,17 @@ function WeatherCard({ weather }: { weather: Weather }) {
 }
 
 export default async function Sidebar({ excludeIds = [] }: { excludeIds?: string[] } = {}) {
+  // Cada fonte falha sozinha (catch → fallback) — antes, se o clima ou as
+  // "mais lidas" caíssem, o Promise.all rejeitava e derrubava a home inteira.
   const [weather, latest] = await Promise.all([
-    getWeather(),
-    getLatestArticles({ limit: 5, exclude: excludeIds }),
+    getWeather().catch(() => null),
+    getLatestArticles({ limit: 5, exclude: excludeIds }).catch(() => [] as Article[]),
   ]);
   return (
     <aside className="space-y-5 mt-6 lg:sticky lg:top-[104px] lg:self-start">
       <NewsletterForm variant="sidebar" />
-      <MostReadCard articles={latest} />
-      <WeatherCard weather={weather} />
+      {latest.length > 0 && <MostReadCard articles={latest} />}
+      {weather && <WeatherCard weather={weather} />}
     </aside>
   );
 }

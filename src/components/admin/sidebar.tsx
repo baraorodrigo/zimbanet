@@ -159,7 +159,7 @@ export default function AdminSidebar({ email }: { email: string | null }) {
         <nav className="flex-1 px-3 py-4 overflow-y-auto">
           {GROUPS.map((grp, gi) => (
             <div key={grp.title} className={gi === 0 ? "" : "mt-5"}>
-              <p className="px-3 pb-1.5 text-[10px] uppercase tracking-[0.2em] font-bold text-zimba-gold/70">
+              <p className="px-3 pb-1.5 text-[10px] uppercase tracking-[0.14em] font-bold text-zimba-gold/70">
                 {grp.title}
               </p>
               <div className="space-y-0.5">

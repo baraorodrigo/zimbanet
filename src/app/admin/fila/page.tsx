@@ -6,6 +6,7 @@ import { getArticleSourceUrls } from "@/lib/db/articles";
 import { Header } from "../_components/header";
 import { GerandoBanner } from "./gerando-banner";
 import { FilaSelectionProvider, FilaCheckbox, FilaBulkBar } from "./fila-interactive";
+import { PendingSubmit } from "@/components/admin/pending-submit";
 
 export const dynamic = "force-dynamic";
 
@@ -205,13 +206,13 @@ export default async function FilaPage({
                 {hasHero ? (
                   <form action={approveArticle} className="contents">
                     <input type="hidden" name="id" value={a.id as string} />
-                    <button
-                      type="submit"
-                      className="flex-1 h-10 rounded-md bg-eco-green text-white text-[11px] uppercase tracking-[0.22em] font-bold hover:bg-green-700 transition-colors"
+                    <PendingSubmit
+                      pendingLabel="Publicando…"
                       title="Tem foto — pode publicar direto"
+                      className="flex-1 h-10 rounded-md bg-eco-green text-white text-[11px] uppercase tracking-[0.22em] font-bold hover:bg-green-700 transition-colors"
                     >
                       ✓ Publicar
-                    </button>
+                    </PendingSubmit>
                   </form>
                 ) : (
                   <Link
@@ -230,12 +231,12 @@ export default async function FilaPage({
                 </Link>
                 <form action={rejectArticle} className="contents">
                   <input type="hidden" name="id" value={a.id as string} />
-                  <button
-                    type="submit"
+                  <PendingSubmit
+                    pendingLabel="Rejeitando…"
                     className="flex-1 h-10 rounded-md border border-alert-red/30 text-alert-red text-[11px] uppercase tracking-[0.22em] font-bold hover:bg-alert-red hover:text-white transition-colors"
                   >
                     Rejeitar
-                  </button>
+                  </PendingSubmit>
                 </form>
               </div>
             </li>
