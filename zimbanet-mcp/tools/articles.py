@@ -32,3 +32,11 @@ def set_hero(
     return client.post(
         f"/api/ai/articles/{article_id}/hero", {"image_url": image_url, "alt": alt}
     )
+
+
+def publish_article(client: ZimbanetClient, article_id: str) -> dict:
+    return client.post(f"/api/ai/articles/{article_id}/publish")
+
+
+def unpublish_article(client: ZimbanetClient, article_id: str) -> dict:
+    return client.post(f"/api/ai/articles/{article_id}/unpublish")

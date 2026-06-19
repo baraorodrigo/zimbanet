@@ -87,8 +87,23 @@ def create_article(
 
 @mcp.tool()
 def submit_review(article_id: str) -> dict:
-    """Manda o rascunho pra REVISÃO HUMANA. É o máximo que o agente faz — publicar é só o humano."""
+    """Manda o rascunho pra revisão humana (fila do editor)."""
     return articles_tools.submit_review(_client, article_id)
+
+
+@mcp.tool()
+def publicar(article_id: str) -> dict:
+    """PUBLICA a matéria no portal (fase de teste — autonomia total). Só publica
+    rascunho/revisão/agendada. Respeita o interruptor mestre (se o humano
+    desligar o autopublish, retorna erro). Publique só matéria boa e revisada —
+    sai no ar pra cidade ver. Para corrigir depois, use 'despublicar'."""
+    return articles_tools.publish_article(_client, article_id)
+
+
+@mcp.tool()
+def despublicar(article_id: str) -> dict:
+    """Tira a matéria do ar (volta a rascunho) pra você CORRIGIR e republicar."""
+    return articles_tools.unpublish_article(_client, article_id)
 
 
 @mcp.tool()
