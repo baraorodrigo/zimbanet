@@ -4,7 +4,7 @@ import httpx
 class ZimbanetClient:
     """Cliente HTTP fino pro gateway /api/ai do Zimbanet. Manda Bearer token."""
 
-    def __init__(self, base_url: str, token: str, timeout: float = 60.0):
+    def __init__(self, base_url: str, token: str, timeout: float = 180.0):
         self._base = base_url.rstrip("/")
         self._headers = {"Authorization": f"Bearer {token}"}
         self._timeout = timeout

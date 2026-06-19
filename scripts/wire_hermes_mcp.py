@@ -32,7 +32,7 @@ ZIMBANET_ENTRY = f"""  zimbanet-mcp:
     env:
       AGENT_TOKEN: ${{ZIMBANET_AGENT_TOKEN}}
       ZIMBANET_API_URL: {API_URL}
-    timeout: 60
+    timeout: 180
 """
 
 SUPABASE_ENTRY = """  supabase:

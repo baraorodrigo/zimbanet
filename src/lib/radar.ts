@@ -5,7 +5,10 @@
 // demorar 5-15s pq chamam Anthropic.
 
 const BASE = process.env.RADAR_BASE_URL || "http://127.0.0.1:8100";
-const TIMEOUT_MS = 60_000;
+// 180s: o pipeline do radar (curador→investigador→redator) faz vários calls de
+// IA e passava de 60s, abortando com "AbortError" — o agente lia errado como
+// "token expirou". 3 min cobre o pipeline sem travar o clique.
+const TIMEOUT_MS = 180_000;
 
 type RadarError = { error: string; detail?: string };
 
