@@ -9,6 +9,7 @@ import {
   regenerateSocialPack,
 } from "@/lib/actions/social";
 import { Header } from "../_components/header";
+import { CopyCaptionButton } from "./social-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -121,8 +122,8 @@ export default async function SocialPage({
     <>
       <Header
         kicker="Distribuição"
-        title="Social — pacote de posts"
-        sub="Pacote gerado pelo Distribuidor sempre que uma matéria é aprovada. Revise, ajuste e leve pra rede."
+        title="Social — prontos pra postar"
+        sub="O ZIMBANET prepara o post (legenda + card); a publicação nas redes é manual: copie a legenda, baixe o card e poste no Instagram/Facebook/WhatsApp. (Publicação automática nas redes ainda não está ligada.)"
       />
 
       <nav className="mt-8 border-b border-border-subtle flex gap-1 overflow-x-auto">
@@ -411,6 +412,31 @@ function PostRow({ post, status }: { post: SocialRow; status: StatusKey }) {
           <p className="mt-3 text-fs-12 text-zimba-blue font-mono break-words">
             {post.hashtags.join(" ")}
           </p>
+        )}
+
+        {/* Ferramentas pra postar na mão: copia a legenda + baixa o card. */}
+        {(post.caption || post.text_short || (post.hashtags?.length ?? 0) > 0) && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <CopyCaptionButton
+              text={[
+                post.caption || post.text_short || "",
+                (post.hashtags ?? []).join(" "),
+              ]
+                .filter(Boolean)
+                .join("\n\n")}
+            />
+            {post.media_url && (
+              <a
+                href={post.media_url}
+                download
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border-subtle text-navy text-fs-12 font-bold hover:border-navy transition-colors"
+              >
+                ⬇ Baixar card
+              </a>
+            )}
+          </div>
         )}
 
         {post.error_message && (
