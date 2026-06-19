@@ -5,6 +5,7 @@ import { approveArticle, rejectArticle } from "@/lib/actions/articles";
 import { getArticleSourceUrls } from "@/lib/db/articles";
 import { Header } from "../_components/header";
 import { GerandoBanner } from "./gerando-banner";
+import { FilaSelectionProvider, FilaCheckbox, FilaBulkBar } from "./fila-interactive";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function FilaPage({
   const withoutHero = items.length - withHero;
 
   return (
-    <>
+    <FilaSelectionProvider>
       <Header
         kicker="Fila · passo 2 de 2"
         title="Aguardando publicação"
@@ -172,6 +173,11 @@ export default async function FilaPage({
               </div>
 
               <div className="flex flex-col sm:flex-row md:flex-col gap-2 md:w-[180px] shrink-0">
+                {hasHero && (
+                  <div className="order-last md:order-first">
+                    <FilaCheckbox id={a.id as string} />
+                  </div>
+                )}
                 {hasHero ? (
                   <form action={approveArticle} className="contents">
                     <input type="hidden" name="id" value={a.id as string} />
@@ -213,6 +219,7 @@ export default async function FilaPage({
           })}
         </ul>
       )}
-    </>
+      <FilaBulkBar />
+    </FilaSelectionProvider>
   );
 }

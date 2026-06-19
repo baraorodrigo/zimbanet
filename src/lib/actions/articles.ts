@@ -335,23 +335,62 @@ export async function approveArticle(formData: FormData): Promise<void> {
   redirect("/admin/fila");
 }
 
-// === REDIGIR COM AI =========================================================
-// Aciona o pipeline Investigador→Redator no scored_item informado.
-// Quando termina, redireciona pra página de edição do article gerado.
-export async function draftArticleWithAI(formData: FormData): Promise<void> {
+// Publica VÁRIAS de uma vez (lote na Fila). Só publica rascunho/revisão; ignora
+// o resto. Cada uma finaliza (Visual+Distribuidor) em background.
+export async function publishBatch(
+  ids: string[],
+): Promise<{ ok: boolean; published: number; error?: string }> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!isStaff(user)) throw new Error("Sem permissão.");
+  if (!isStaff(user)) return { ok: false, published: 0, error: "Sem permissão." };
+  const actor = user!.email ?? user!.id;
+  const clean = Array.from(new Set((ids ?? []).filter(Boolean)));
+  let published = 0;
+  for (const id of clean) {
+    const { data, error } = await supabase
+      .from("articles")
+      .update({
+        status: "published",
+        published_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .in("status", ["draft", "review"])
+      .select("slug, editoria, title, lede, subtitle, hero_image_url, is_breaking")
+      .maybeSingle();
+    if (error || !data) continue;
+    published += 1;
+    await audit(supabase, {
+      entity_type: "article",
+      entity_id: id,
+      action: "approve_publish_batch",
+      actor,
+    });
+    finalizeArticle(id).catch((err: Error) =>
+      console.warn("[publishBatch] finalize falhou:", err.message),
+    );
+    maybePushBreaking({
+      id,
+      title: data.title as string,
+      lede: (data.lede as string | null) ?? null,
+      subtitle: (data.subtitle as string | null) ?? null,
+      editoria: data.editoria as string,
+      slug: data.slug as string,
+      hero_image_url: (data.hero_image_url as string | null) ?? null,
+      is_breaking: !!data.is_breaking,
+    });
+    revalidateArticle(data.slug as string, data.editoria as string);
+  }
+  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/fila");
+  return { ok: true, published };
+}
 
-  const scoredId = field(formData, "scored_item_id");
-  if (!scoredId) throw new Error("scored_item_id ausente.");
-
-  const actorEmail = user!.email ?? user!.id;
-
-  // ASSÍNCRONO: dispara Investigador+Redator em SEGUNDO PLANO e volta NA HORA
-  // pra Fila. O processo persistente conclui a geração (~30s) e o rascunho
-  // aparece na Fila (que atualiza sozinha). Mesmo padrão fire-and-forget do
-  // maybePushBreaking — o clique não fica preso esperando o motor.
+// === REDIGIR COM AI =========================================================
+// Dispara Investigador→Redator em SEGUNDO PLANO (fire-and-forget). O processo
+// persistente conclui (~30s) e o rascunho aparece na Pauta/Fila. O clique NÃO
+// fica preso e NÃO sai da Pauta (o editor dispara vários seguidos).
+function kickoffDraft(scoredId: string, actorEmail: string): void {
   void draftFromScored(scoredId)
     .then(async (result) => {
       try {
@@ -365,18 +404,53 @@ export async function draftArticleWithAI(formData: FormData): Promise<void> {
           metadata: { scored_item_id: scoredId, slug: result.slug, async: true },
         });
       } catch (e) {
-        console.error("[draftArticleWithAI] audit em background falhou:", e);
+        console.error("[kickoffDraft] audit em background falhou:", e);
       }
     })
     .catch((err) => {
       console.error(
-        "[draftArticleWithAI] geração em background falhou:",
+        "[kickoffDraft] geração em background falhou:",
         err instanceof Error ? err.message : String(err),
       );
     });
+}
 
+// Redigir UM scored — fica na Pauta (sem redirect). Chamado direto do client.
+export async function redigirScored(
+  scoredId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!isStaff(user)) return { ok: false, error: "Sem permissão." };
+  if (!scoredId) return { ok: false, error: "scored_item_id ausente." };
+  kickoffDraft(scoredId, user!.email ?? user!.id);
   revalidatePath("/admin/pauta");
-  redirect("/admin/fila?gerando=1");
+  return { ok: true };
+}
+
+// Redigir VÁRIOS de uma vez (lote). Dispara todos em paralelo, fica na Pauta.
+export async function redigirBatch(
+  ids: string[],
+): Promise<{ ok: boolean; started: number; error?: string }> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!isStaff(user)) return { ok: false, started: 0, error: "Sem permissão." };
+  const actor = user!.email ?? user!.id;
+  const clean = Array.from(new Set((ids ?? []).filter(Boolean)));
+  for (const id of clean) kickoffDraft(id, actor);
+  revalidatePath("/admin/pauta");
+  return { ok: true, started: clean.length };
+}
+
+// Compat: versão por <form> (ainda usada em alguns lugares). Sem redirect.
+export async function draftArticleWithAI(formData: FormData): Promise<void> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!isStaff(user)) throw new Error("Sem permissão.");
+  const scoredId = field(formData, "scored_item_id");
+  if (!scoredId) throw new Error("scored_item_id ausente.");
+  kickoffDraft(scoredId, user!.email ?? user!.id);
+  revalidatePath("/admin/pauta");
 }
 
 export async function rejectArticle(formData: FormData): Promise<void> {

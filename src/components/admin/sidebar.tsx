@@ -11,22 +11,56 @@ type Item = {
   match?: (path: string) => boolean;
 };
 
-const NAV: Item[] = [
-  { href: "/admin", label: "Dashboard", hint: "Visão geral", match: (p) => p === "/admin" },
-  { href: "/admin/pauta", label: "Pauta", hint: "Sugestões do Curador" },
-  { href: "/admin/fila", label: "Fila", hint: "Aguardando publicação" },
-  { href: "/admin/social", label: "Social", hint: "Pacotes pra IG / FB / WhatsApp" },
-  { href: "/admin/materias", label: "Matérias", hint: "Tudo o que já entrou" },
-  { href: "/admin/materias/nova", label: "Nova matéria", hint: "Criar do zero" },
-  { href: "/admin/ticker", label: "Ticker", hint: "Barra vermelha do portal" },
-  { href: "/admin/moderacao", label: "Moderação", hint: "Mural / Bazar guest" },
-  { href: "/admin/personas", label: "Personas", hint: "Vozes da redação" },
-  { href: "/admin/curador", label: "Curador", hint: "O que o Haiku procura" },
-  { href: "/admin/fontes", label: "Fontes", hint: "RSS / scrapers" },
-  { href: "/admin/autonomo", label: "Autônomo", hint: "Scheduler do motor" },
-  { href: "/admin/auditoria", label: "Auditoria", hint: "Histórico" },
-  { href: "/admin/configuracoes", label: "Configurações", hint: "Modelos & chaves de IA" },
-  { href: "/admin/agentes", label: "Agentes", hint: "Tokens dos agentes (Hermes)" },
+type Group = { title: string; items: Item[] };
+
+// Agrupado por FREQUÊNCIA DE USO: o dia a dia (Redação) no topo, a sala de
+// máquinas (Motor de IA / Sistema) embaixo. Antes eram 15 itens soltos.
+const GROUPS: Group[] = [
+  {
+    title: "✍️ Redação",
+    items: [
+      { href: "/admin/pauta", label: "Pauta", hint: "Sugestões do Curador" },
+      { href: "/admin/fila", label: "Fila", hint: "Revisar e publicar" },
+      {
+        href: "/admin/materias",
+        label: "Matérias",
+        hint: "Tudo o que já entrou",
+        match: (p) =>
+          p === "/admin/materias" ||
+          (p.startsWith("/admin/materias/") && !p.startsWith("/admin/materias/nova")),
+      },
+      { href: "/admin/materias/nova", label: "Nova matéria", hint: "Criar do zero" },
+    ],
+  },
+  {
+    title: "📣 Distribuição",
+    items: [
+      { href: "/admin/social", label: "Social", hint: "IG / FB / WhatsApp" },
+      { href: "/admin/ticker", label: "Ticker", hint: "Barra vermelha do portal" },
+    ],
+  },
+  {
+    title: "💬 Comunidade",
+    items: [{ href: "/admin/moderacao", label: "Moderação", hint: "Mural / Bazar" }],
+  },
+  {
+    title: "⚙️ Motor de IA",
+    items: [
+      { href: "/admin/curador", label: "Curador", hint: "Regras de relevância" },
+      { href: "/admin/fontes", label: "Fontes", hint: "RSS / scrapers" },
+      { href: "/admin/personas", label: "Personas", hint: "Vozes da redação" },
+      { href: "/admin/autonomo", label: "Autônomo", hint: "Scheduler do motor" },
+      { href: "/admin/agentes", label: "Agentes", hint: "Tokens (Hermes)" },
+    ],
+  },
+  {
+    title: "🔧 Sistema",
+    items: [
+      { href: "/admin", label: "Painel", hint: "Visão geral", match: (p) => p === "/admin" },
+      { href: "/admin/auditoria", label: "Auditoria", hint: "Histórico" },
+      { href: "/admin/configuracoes", label: "Configurações", hint: "Modelos & chaves" },
+    ],
+  },
 ];
 
 // Em mobile vira drawer: barra fina com hamburger fixa no topo, sidebar
@@ -121,40 +155,51 @@ export default function AdminSidebar({ email }: { email: string | null }) {
           </button>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {NAV.map((item) => {
-            const active = item.match
-              ? item.match(pathname)
-              : pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`group block rounded-md px-3 py-2.5 transition-colors ${
-                  active
-                    ? "bg-zimba-gold text-navy"
-                    : "text-off-white/85 hover:bg-white/5 hover:text-off-white"
-                }`}
-              >
-                <span
-                  className={`block font-display font-bold text-fs-15 leading-tight ${
-                    active ? "text-navy" : "text-off-white"
-                  }`}
-                >
-                  {item.label}
-                </span>
-                {item.hint && (
-                  <span
-                    className={`block text-[11px] tracking-wide2 leading-tight mt-0.5 ${
-                      active ? "text-navy/70" : "text-off-white/50 group-hover:text-off-white/70"
-                    }`}
-                  >
-                    {item.hint}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto">
+          {GROUPS.map((grp, gi) => (
+            <div key={grp.title} className={gi === 0 ? "" : "mt-5"}>
+              <p className="px-3 pb-1.5 text-[10px] uppercase tracking-[0.2em] font-bold text-zimba-gold/70">
+                {grp.title}
+              </p>
+              <div className="space-y-0.5">
+                {grp.items.map((item) => {
+                  const active = item.match
+                    ? item.match(pathname)
+                    : pathname === item.href || pathname.startsWith(item.href + "/");
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`group block rounded-md px-3 py-2 transition-colors ${
+                        active
+                          ? "bg-zimba-gold text-navy"
+                          : "text-off-white/85 hover:bg-white/5 hover:text-off-white"
+                      }`}
+                    >
+                      <span
+                        className={`block font-display font-bold text-fs-14 leading-tight ${
+                          active ? "text-navy" : "text-off-white"
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                      {item.hint && (
+                        <span
+                          className={`block text-[10.5px] leading-tight mt-0.5 ${
+                            active
+                              ? "text-navy/70"
+                              : "text-off-white/45 group-hover:text-off-white/70"
+                          }`}
+                        >
+                          {item.hint}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         <div className="px-5 py-4 border-t border-white/10 text-fs-12 text-off-white/70">

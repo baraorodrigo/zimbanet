@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ZIMBANET · Análise de Navegabilidade do Painel</title>
+<style>
+  :root{
+    --navy:#0D1B2A; --blue:#1B3A5C; --gold:#E8B100; --off:#F5F5F5;
+    --red:#C62828; --green:#2E7D32; --ink:#2b2b2b; --ink5:#6b7280; --line:#e3e6ea;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--off);color:var(--ink);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:920px;margin:0 auto;padding:0 20px 80px}
+  header.top{background:var(--navy);color:#fff;padding:48px 0 40px;margin-bottom:8px}
+  header.top .wrap{padding-top:0;padding-bottom:0}
+  .brand{font-weight:900;font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold)}
+  h1{font-family:Georgia,"Times New Roman",serif;font-weight:800;font-size:34px;line-height:1.12;margin:10px 0 6px}
+  header.top p{color:#c9d3de;margin:0;max-width:62ch}
+  h2{font-family:Georgia,serif;font-size:24px;margin:48px 0 4px;color:var(--navy);
+    border-top:2px solid var(--line);padding-top:34px}
+  h2 .n{color:var(--gold);font-size:15px;font-weight:900;letter-spacing:.2em;display:block;
+    font-family:Inter,sans-serif;text-transform:uppercase;margin-bottom:6px}
+  h3{font-size:16px;margin:24px 0 6px;color:var(--navy)}
+  p{margin:8px 0}
+  .lead{font-size:17px;color:#33404d}
+  .card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:14px 0}
+  .grid{display:grid;gap:14px}
+  @media(min-width:680px){.grid.two{grid-template-columns:1fr 1fr}}
+  .tag{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+    padding:3px 8px;border-radius:5px;vertical-align:middle}
+  .t-now{background:#fdeaea;color:var(--red)}
+  .t-quick{background:#fff4cc;color:#8a6d00}
+  .t-mid{background:#e7f0fa;color:var(--blue)}
+  .t-big{background:#eee;color:#555}
+  .bad{color:var(--red);font-weight:700}
+  .good{color:var(--green);font-weight:700}
+  .small{font-size:13px;color:var(--ink5)}
+  ul{margin:8px 0;padding-left:20px}
+  li{margin:5px 0}
+  .ba{display:grid;gap:12px}
+  @media(min-width:680px){.ba{grid-template-columns:1fr 1fr}}
+  .nav-demo{background:var(--navy);border-radius:8px;padding:12px;color:#fff;font-size:13px}
+  .nav-demo .item{padding:6px 10px;border-radius:5px;color:#dfe6ee}
+  .nav-demo .group{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);
+    font-weight:800;padding:12px 10px 4px}
+  .nav-demo .flat .item{border-bottom:1px solid rgba(255,255,255,.06)}
+  .arrow{font-size:13px;color:var(--ink5)}
+  .pri{display:flex;gap:10px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+  .pri:last-child{border-bottom:0}
+  .pri .num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--navy);color:var(--gold);
+    font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+  .quote{border-left:3px solid var(--gold);padding:6px 0 6px 14px;color:#33404d;font-style:italic;margin:10px 0}
+  code{background:#eef1f4;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12.5px}
+  .footer{margin-top:50px;padding-top:20px;border-top:2px solid var(--line);color:var(--ink5);font-size:13px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">ZIMBANET · Painel editorial</div>
+    <h1>Análise de navegabilidade<br>e plano de melhoria</h1>
+    <p>O painel funciona, mas cresceu para 15 telas soltas e o fluxo do dia a dia (decidir pauta → redigir → revisar → publicar) tem atrito em cada passo. Abaixo, o diagnóstico com olhar de produto e um plano priorizado — do conserto rápido ao redesenho.</p>
+  </div>
+</header>
+<div class="wrap">
+
+  <p class="lead">Princípio que guia tudo aqui: <strong>o caminho mais comum tem que ser o mais fácil.</strong> Hoje, o que você faz 50× por dia (triar pauta e redigir) custa os mesmos cliques que o que você faz 1× por mês (configurar uma fonte). Um bom painel inverte isso.</p>
+
+  <h2><span class="n">Diagnóstico</span>As 6 dores reais</h2>
+  <div class="grid two">
+    <div class="card"><span class="tag t-now">Confunde</span><h3>1. Menu com 15 itens soltos</h3><p class="small">Pauta, Fila, Social, Matérias, Ticker, Moderação, Personas, Curador, Fontes, Autônomo, Auditoria, Config, Agentes… tudo no mesmo nível. O dia a dia se perde no meio da "sala de máquinas".</p></div>
+    <div class="card"><span class="tag t-now">Confunde</span><h3>2. Abas da Pauta parecem botões</h3><p class="small">"Investigar / Aprovar / Rejeitar" são <em>filtros</em> da decisão do Curador — mas leem como <em>ações</em>. Você clica "Aprovar" esperando aprovar, e só troca o filtro.</p></div>
+    <div class="card"><span class="tag t-now">Atrapalha</span><h3>3. "Redigir com IA" te expulsa</h3><p class="small">Cada clique em Redigir te <strong>joga pra outra página</strong> (a Fila). Pra redigir 5 pautas você sai e volta 5×. <span class="quote" style="margin:6px 0">"cada vez q boto reescrever ele avança já pra outra página"</span></p></div>
+    <div class="card"><span class="tag t-now">Falta</span><h3>4. Nada em lote</h3><p class="small">Não dá pra selecionar várias e redigir/aprovar de uma vez. Tudo é um por um. <span class="quote" style="margin:6px 0">"deveria poder selecionar mais de uma e aprovar todas de uma vez"</span></p></div>
+    <div class="card"><span class="tag t-mid">Falta</span><h3>5. Sem revisor</h3><p class="small">O rascunho vai direto do Redator pra sua mão. Não há uma camada que cheque qualidade, fato e tom antes de chegar em você.</p></div>
+    <div class="card"><span class="tag t-mid">Oportunidade</span><h3>6. Agentes pouco autônomos</h3><p class="small">O agente entrega um rascunho cru; foto, SEO e social ainda são seu trabalho manual. Dá pra ele entregar o pacote mais pronto — sem nunca publicar sozinho.</p></div>
+  </div>
+
+  <h2><span class="n">Conserto 1</span>Menu: de 15 itens soltos a 5 grupos</h2>
+  <p>O olho não deve varrer 15 linhas pra achar "Fila". Agrupando por <strong>frequência de uso</strong>, o dia a dia fica no topo e a configuração desce pra "sala de máquinas".</p>
+  <div class="ba">
+    <div>
+      <p class="small"><strong>HOJE</strong> — lista plana</p>
+      <div class="nav-demo flat">
+        <div class="item">Dashboard</div><div class="item">Pauta</div><div class="item">Fila</div><div class="item">Social</div><div class="item">Matérias</div><div class="item">Nova matéria</div><div class="item">Ticker</div><div class="item">Moderação</div><div class="item">Personas</div><div class="item">Curador</div><div class="item">Fontes</div><div class="item">Autônomo</div><div class="item">Auditoria</div><div class="item">Configurações</div><div class="item">Agentes</div>
+      </div>
+    </div>
+    <div>
+      <p class="small"><strong>PROPOSTA</strong> — agrupado por uso</p>
+      <div class="nav-demo">
+        <div class="group">✍️ Redação <span style="color:#7d8a98;font-weight:400">(o dia a dia)</span></div>
+        <div class="item" style="background:var(--gold);color:var(--navy);font-weight:700">Pauta</div>
+        <div class="item">Fila · revisão</div>
+        <div class="item">Matérias</div>
+        <div class="group">📣 Distribuição</div>
+        <div class="item">Social</div><div class="item">Ticker</div>
+        <div class="group">💬 Comunidade</div>
+        <div class="item">Moderação</div>
+        <div class="group">⚙️ Motor de IA</div>
+        <div class="item">Curador · Fontes · Personas</div>
+        <div class="item">Autônomo · Agentes</div>
+        <div class="group">🔧 Sistema</div>
+        <div class="item">Painel · Auditoria · Config</div>
+      </div>
+    </div>
+  </div>
+  <p class="small">Resultado: 3 itens de uso diário sempre visíveis no topo; o resto recolhido por contexto. Menos ruído, decisão mais rápida.</p>
+
+  <h2><span class="n">Conserto 2</span>A Pauta: o coração do trabalho</h2>
+  <h3>2a. Abas que não enganam</h3>
+  <p>Trocar rótulos de ação por rótulos de <strong>sinal</strong>, e já abrir no que importa:</p>
+  <div class="card">
+    <p><span class="bad">Hoje:</span> Tudo · Investigar · <strong>Aprovar</strong> · Rejeitar &nbsp;<span class="arrow">→ "Aprovar" parece botão</span></p>
+    <p><span class="good">Proposta:</span> <strong>Pra redigir</strong> (forte+média) · Tudo · Descartadas — com um aviso claro de que é filtro, não ação.</p>
+  </div>
+  <h3>2b. "Redigir com IA" sem te expulsar</h3>
+  <p>O clique <strong>fica na Pauta</strong>. O card vira "✍️ escrevendo…" na hora e, quando termina, mostra "📝 rascunho pronto → abrir". Você dispara <strong>vários seguidos</strong> sem sair do lugar — e acompanha tudo num cantinho "gerando (2)".</p>
+  <h3>2c. Seleção múltipla + lote</h3>
+  <p>Caixinhas nos cards + barra de ação flutuante: <strong>"Redigir as 4 selecionadas"</strong>. O mesmo na Fila: <strong>"Publicar as 3 com foto"</strong>. Um clique faz o trabalho de muitos.</p>
+
+  <h2><span class="n">Conserto 3</span>Um Revisor de verdade + agentes mais autônomos</h2>
+  <p>Hoje o caminho é <code>Redator → você</code>. A proposta adiciona uma camada de qualidade <strong>antes</strong> de chegar em você, e faz o agente entregar mais pronto:</p>
+  <div class="card">
+    <p><strong>Revisor (IA) — um "editor-chefe" automático.</strong> Ao nascer um rascunho, um agente Revisor lê e devolve um selo: ✅ pronto · ⚠️ revisar (com os pontos: fato sem fonte, tom errado, forçou Imbituba, título fraco). Você vê o selo direto na Fila e foca onde importa — em vez de reler tudo do zero.</p>
+  </div>
+  <div class="card">
+    <p><strong>Mais autonomia, nunca publicar sozinho.</strong> O agente passa a entregar o <em>pacote</em>: rascunho + foto de capa sugerida + SEO + chamada de social — tudo como rascunho. Você revisa e aprova. A regra de ouro continua de pé: <strong>quem publica é você.</strong></p>
+  </div>
+
+  <h2><span class="n">Roadmap</span>Por onde ir — do rápido ao estrutural</h2>
+  <div class="card">
+    <div class="pri"><div class="num">1</div><div><strong>"Redigir" fica na Pauta</strong> <span class="tag t-quick">rápido</span><br><span class="small">Mata o atrito nº 1. Some o redirect; card vira "escrevendo…" e atualiza sozinho.</span></div></div>
+    <div class="pri"><div class="num">2</div><div><strong>Menu agrupado (5 grupos)</strong> <span class="tag t-quick">rápido</span><br><span class="small">Reorganiza a navegação sem quebrar nada — só agrupa e prioriza.</span></div></div>
+    <div class="pri"><div class="num">3</div><div><strong>Abas da Pauta sem ambiguidade</strong> <span class="tag t-quick">rápido</span><br><span class="small">Rótulos de sinal + default em "Pra redigir".</span></div></div>
+    <div class="pri"><div class="num">4</div><div><strong>Seleção múltipla + lote (Pauta e Fila)</strong> <span class="tag t-mid">médio</span><br><span class="small">Redigir várias / publicar várias de uma vez.</span></div></div>
+    <div class="pri"><div class="num">5</div><div><strong>Agente Revisor + selo de qualidade na Fila</strong> <span class="tag t-mid">médio</span><br><span class="small">Camada de revisão automática antes de você.</span></div></div>
+    <div class="pri"><div class="num">6</div><div><strong>Pacote completo do agente (foto+SEO+social)</strong> <span class="tag t-big">maior</span><br><span class="small">Entrega mais pronta; menos trabalho manual seu.</span></div></div>
+  </div>
+
+  <div class="footer">
+    Sugestão: começar pelos <strong>3 primeiros (rápidos)</strong> — são os que você sente toda hora e dá pra fazer já. Depois lote, revisor e pacote completo.
+    <br>Nada aqui muda a regra de ouro: <strong>nenhum agente publica — quem publica é você.</strong>
+  </div>
+
+</div>
+</body>
+</html>

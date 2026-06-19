@@ -1,10 +1,14 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { PendingSubmit } from "@/components/admin/pending-submit";
 import { EDITORIA_LABEL, type EditoriaSlug } from "@/lib/db/types";
-import { draftArticleWithAI } from "@/lib/actions/articles";
 import { Header } from "../_components/header";
+import {
+  PautaSelectionProvider,
+  PautaBulkBar,
+  RedigirButton,
+  PautaCheckbox,
+} from "./pauta-interactive";
 
 export const dynamic = "force-dynamic";
 
@@ -179,8 +183,9 @@ async function PautaBody({
   ]);
 
   return (
-    <>
-      {/* Tabs por decisão */}
+    <PautaSelectionProvider>
+      {/* Filtro pela leitura do Curador. Rótulos de SINAL (não de ação): antes
+          eram "Aprovar/Rejeitar" e o editor clicava achando que era um botão. */}
       <nav className="mt-6 flex gap-2 flex-wrap">
         <DecisionTab
           href={qs({ decision: "all", editoria, q })}
@@ -189,27 +194,31 @@ async function PautaBody({
           count={allCount.count ?? 0}
         />
         <DecisionTab
-          href={qs({ decision: "investigate", editoria, q })}
-          active={decision === "investigate"}
-          label="Investigar"
-          count={investigateCount.count ?? 0}
-          tone="gold"
-        />
-        <DecisionTab
           href={qs({ decision: "approve", editoria, q })}
           active={decision === "approve"}
-          label="Aprovar"
+          label="Fortes"
           count={approveCount.count ?? 0}
           tone="green"
         />
         <DecisionTab
+          href={qs({ decision: "investigate", editoria, q })}
+          active={decision === "investigate"}
+          label="Pra investigar"
+          count={investigateCount.count ?? 0}
+          tone="gold"
+        />
+        <DecisionTab
           href={qs({ decision: "reject", editoria, q })}
           active={decision === "reject"}
-          label="Rejeitar"
+          label="Descartadas"
           count={rejectCount.count ?? 0}
           tone="dim"
         />
       </nav>
+      <p className="mt-2 text-fs-12 text-ink-400">
+        Filtro pela leitura do Curador — não é uma ação. As decisões (Redigir, Ver
+        fonte) ficam em cada card abaixo.
+      </p>
 
       {/* Filtros */}
       <form className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3" method="GET">
@@ -268,7 +277,8 @@ async function PautaBody({
           ))}
         </ul>
       )}
-    </>
+      <PautaBulkBar />
+    </PautaSelectionProvider>
   );
 }
 
@@ -402,6 +412,11 @@ function PautaCard({
       </div>
 
       <div className="flex flex-col sm:flex-row md:flex-col gap-2 md:w-[180px] shrink-0 self-start">
+        {!hasInProgressDraft && (
+          <div className="order-last md:order-first">
+            <PautaCheckbox id={scored.id} />
+          </div>
+        )}
         {hasInProgressDraft && linked ? (
           <Link
             href={`/admin/materias/${linked.id}`}
@@ -411,16 +426,7 @@ function PautaCard({
             → Abrir matéria
           </Link>
         ) : (
-          <form action={draftArticleWithAI} className="contents">
-            <input type="hidden" name="scored_item_id" value={scored.id} />
-            <PendingSubmit
-              pendingLabel="Escrevendo… ~30s"
-              title="Investigador + Redator em sequência. Vai pra fila como rascunho."
-              className="flex-1 h-10 rounded-md bg-zimba-gold text-navy text-[11px] uppercase tracking-[0.22em] font-bold hover:bg-navy hover:text-zimba-gold transition-colors"
-            >
-              ✨ Redigir com AI
-            </PendingSubmit>
-          </form>
+          <RedigirButton scoredId={scored.id} />
         )}
         <Link
           href={`/admin/materias/nova?from=${encodeURIComponent(r.id)}`}
