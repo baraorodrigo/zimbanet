@@ -20,6 +20,7 @@ from app.db.types import (
     InvestigadorOutput,
     RawItem,
     RedatorOutput,
+    ReviewOutput,
     ScoredItem,
     ScoredItemStatus,
     Source,
@@ -289,6 +290,25 @@ def update_article_visual(
     if visual_slots is not None:
         payload["visual_slots"] = visual_slots
     sb.table("articles").update(payload).eq("id", article_id).execute()
+
+
+def update_article_review(article_id: str, output: ReviewOutput) -> None:
+    """Persiste o selo do Revisor em articles.ai_review (jsonb)."""
+    sb = supabase_client()
+    now = datetime.now(timezone.utc).isoformat()
+    sb.table("articles").update(
+        {
+            "ai_review": {
+                "ok": output.ok,
+                "rating": output.rating,
+                "issues": output.issues,
+                "summary": output.summary,
+                "reviewed_at": now,
+                "prompt_version": "revisor.v1",
+            },
+            "updated_at": now,
+        }
+    ).eq("id", article_id).execute()
 
 
 def fetch_article(article_id: str) -> Article | None:

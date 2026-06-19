@@ -17,7 +17,7 @@ export default async function FilaPage({
   const supabase = createClient();
   const { data, error } = await supabase
     .from("articles")
-    .select("id, title, slug, editoria, kicker, lede, body, byline, hero_image_url, status, is_breaking, is_exclusive, created_at, updated_at")
+    .select("id, title, slug, editoria, kicker, lede, body, byline, hero_image_url, status, is_breaking, is_exclusive, ai_review, created_at, updated_at")
     .in("status", ["draft", "review"])
     .order("updated_at", { ascending: false })
     .limit(50);
@@ -130,6 +130,7 @@ export default async function FilaPage({
                       minute: "2-digit",
                     })}
                   </span>
+                  <ReviewSelo review={a.ai_review as Review | null} />
                 </div>
                 {a.kicker && (
                   <p className="font-sans text-[11px] uppercase tracking-[0.18em] font-bold text-zimba-blue mt-2">
@@ -146,6 +147,29 @@ export default async function FilaPage({
                     {a.lede}
                   </p>
                 )}
+                {(() => {
+                  const rv = a.ai_review as Review | null;
+                  if (!rv || (rv.ok && !(rv.issues && rv.issues.length))) return null;
+                  return (
+                    <details className="mt-2">
+                      <summary className="text-fs-12 text-zimba-blue cursor-pointer hover:text-navy select-none">
+                        parecer do revisor
+                      </summary>
+                      {rv.summary && (
+                        <p className="mt-1.5 text-fs-12 text-ink-700 leading-relaxed">{rv.summary}</p>
+                      )}
+                      {rv.issues && rv.issues.length > 0 && (
+                        <ul className="mt-1.5 text-fs-12 text-ink-600 list-disc pl-4 space-y-0.5">
+                          {rv.issues.map((i, k) => (
+                            <li key={k}>
+                              <span className="font-bold text-navy">{i.tipo}:</span> {i.nota}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </details>
+                  );
+                })()}
                 {a.byline && (
                   <p className="mt-2 text-fs-12 text-ink-500">por {a.byline}</p>
                 )}
@@ -221,5 +245,39 @@ export default async function FilaPage({
       )}
       <FilaBulkBar />
     </FilaSelectionProvider>
+  );
+}
+
+type Review = {
+  ok: boolean;
+  rating: number;
+  issues?: { tipo: string; nota: string }[];
+  summary?: string;
+};
+
+// Selo do Revisor (editor-chefe IA). Mostra na Fila se o rascunho está pronto
+// ou precisa de olhada — pro editor focar onde importa.
+function ReviewSelo({ review }: { review: Review | null }) {
+  if (!review) {
+    return (
+      <span
+        className="text-[10px] uppercase tracking-[0.18em] font-bold rounded px-2 py-0.5 bg-ink-100 text-ink-400"
+        title="Ainda não revisado pela IA"
+      >
+        sem revisão
+      </span>
+    );
+  }
+  const ok = review.ok;
+  const n = review.issues?.length ?? 0;
+  return (
+    <span
+      className={`text-[10px] uppercase tracking-[0.18em] font-bold rounded px-2 py-0.5 ${
+        ok ? "bg-eco-green/10 text-eco-green" : "bg-gold-100 text-gold-700"
+      }`}
+      title={review.summary ?? ""}
+    >
+      {ok ? "✅ revisado" : `⚠️ revisar${n ? ` (${n})` : ""}`} · {Math.round(review.rating)}/10
+    </span>
   );
 }

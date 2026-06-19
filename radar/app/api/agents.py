@@ -53,6 +53,39 @@ async def run_curador(
     return {"processed": len(results), "failed": len(errors), "results": results, "errors": errors}
 
 
+@router.post("/revisor/run")
+async def run_revisor(
+    limit: int = Query(default=10, ge=1, le=50),
+    persist: bool = Query(default=True),
+) -> dict[str, Any]:
+    """Revisa rascunhos/revisão que ainda não têm selo (ai_review null)."""
+    from app.agents.revisor import review_article
+    from app.clients import supabase_client
+    from app.db.types import Article
+
+    sb = supabase_client()
+    resp = (
+        sb.table("articles")
+        .select("*")
+        .in_("status", ["draft", "review"])
+        .is_("ai_review", "null")
+        .order("updated_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    pending = [Article.model_validate(r) for r in (resp.data or [])]
+    results: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+    for art in pending:
+        try:
+            out = review_article(art, persist=persist)
+            results.append({"article_id": art.id, "ok": out.ok, "rating": out.rating})
+        except Exception as exc:  # noqa: BLE001
+            log.error("revisor_failed", article_id=art.id, error=str(exc))
+            errors.append({"article_id": art.id, "error": str(exc)})
+    return {"processed": len(results), "failed": len(errors), "results": results, "errors": errors}
+
+
 @router.post("/investigador/run")
 async def run_investigador(
     limit: int = Query(default=5, ge=1, le=50),

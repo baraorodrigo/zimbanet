@@ -210,6 +210,15 @@ class AnalistaOutput(_Base):
     improvements: list[str] = Field(default_factory=list)
 
 
+class ReviewOutput(_Base):
+    """Saída do Revisor — selo de qualidade do rascunho ANTES do humano."""
+
+    ok: bool  # true = pronto (sem problema sério); false = precisa revisão
+    rating: float = Field(ge=0, le=10)
+    issues: list[dict[str, Any]] = Field(default_factory=list)  # [{tipo, nota}]
+    summary: str = Field(min_length=8, max_length=600)
+
+
 class AuditLogEntry(_Base):
     entity_type: str
     entity_id: str

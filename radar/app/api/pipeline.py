@@ -29,6 +29,28 @@ router = APIRouter()
 log = get_logger("api.pipeline")
 
 
+def _run_draft_package(article: Any) -> dict[str, Any]:
+    """Pós-rascunho: entrega o pacote mais pronto pro editor humano —
+    Revisor (selo de qualidade) + Visual (alt + slots do Estúdio). NÃO-bloqueante:
+    se um falhar, o rascunho continua de pé."""
+    pkg: dict[str, Any] = {}
+    try:
+        from app.agents.revisor import review_article
+
+        rv = review_article(article, persist=True)
+        pkg["review"] = {"ok": rv.ok, "rating": rv.rating, "issues": len(rv.issues)}
+    except Exception as exc:  # noqa: BLE001
+        log.warning("draft_review_failed", article_id=article.id, error=str(exc))
+    try:
+        from app.agents.visual import visualize_article
+
+        visualize_article(article, persist=True)
+        pkg["visual"] = True
+    except Exception as exc:  # noqa: BLE001
+        log.warning("draft_visual_failed", article_id=article.id, error=str(exc))
+    return pkg
+
+
 @router.post("/draft/{scored_item_id}")
 async def pipeline_draft(scored_item_id: str) -> dict[str, Any]:
     """Investigador → Redator no scored_item informado. Devolve article criado."""
@@ -83,6 +105,8 @@ async def pipeline_draft(scored_item_id: str) -> dict[str, Any]:
     if article is None:
         raise HTTPException(status_code=500, detail="redação falhou")
 
+    package = _run_draft_package(article)
+
     return {
         "scored_item_id": scored.id,
         "enriched_item_id": enriched.id,
@@ -90,6 +114,7 @@ async def pipeline_draft(scored_item_id: str) -> dict[str, Any]:
         "slug": article.slug,
         "title": article.title,
         "reused": False,
+        "package": package,
     }
 
 
