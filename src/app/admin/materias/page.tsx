@@ -92,7 +92,7 @@ export default async function MateriasIndex({ searchParams }: { searchParams?: S
               return (
                 <li
                   key={a.id as string}
-                  className="grid grid-cols-[80px_1fr_140px_120px_140px] gap-4 items-center px-4 py-3 hover:bg-off-white transition-colors"
+                  className="grid grid-cols-1 sm:grid-cols-[80px_1fr_140px_120px_140px] gap-1.5 sm:gap-4 sm:items-center px-4 py-3 hover:bg-off-white transition-colors"
                 >
                   <Link
                     href={`/admin/materias/${a.id}`}
@@ -106,7 +106,7 @@ export default async function MateriasIndex({ searchParams }: { searchParams?: S
                       {STATUS_LABEL[a.status as string] ?? a.status}
                     </span>
                     <div className="min-w-0">
-                      <p className="font-display font-bold text-fs-15 text-navy truncate flex items-center gap-2">
+                      <p className="font-display font-bold text-fs-15 text-navy sm:truncate flex flex-wrap items-center gap-2">
                         {a.is_cover && (
                           <span
                             className="shrink-0 inline-flex items-center gap-1 text-[9px] uppercase tracking-[0.22em] font-bold bg-zimba-gold text-navy px-1.5 py-0.5 rounded-xs"
@@ -123,7 +123,7 @@ export default async function MateriasIndex({ searchParams }: { searchParams?: S
                             ● Destaque
                           </span>
                         )}
-                        <span className="truncate">{a.title}</span>
+                        <span className="sm:truncate">{a.title}</span>
                       </p>
                       {a.byline && (
                         <p className="text-fs-12 text-ink-500 mt-0.5">por {a.byline}</p>
@@ -157,7 +157,7 @@ export default async function MateriasIndex({ searchParams }: { searchParams?: S
                   </Link>
                   <Link
                     href={`/admin/materias/${a.id}`}
-                    className="text-fs-12 text-ink-500 text-right hover:text-navy"
+                    className="text-fs-12 text-ink-500 sm:text-right hover:text-navy"
                   >
                     {new Date(a.updated_at as string).toLocaleString("pt-BR", {
                       day: "2-digit",

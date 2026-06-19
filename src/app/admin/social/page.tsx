@@ -109,13 +109,12 @@ export default async function SocialPage({
     items: items.sort((a, b) => CHANNEL_ORDER(a.channel) - CHANNEL_ORDER(b.channel)),
   }));
 
-  // Counts pra tabs
-  const counts = await supabase
-    .from("social_posts")
-    .select("status", { count: "exact", head: false });
+  // Counts pra tabs — via RPC agregada (1 query), em vez de puxar TODAS as
+  // ~1000 linhas só pra contar (era o gargalo que deixava a Social lenta).
+  const { data: countRows } = await supabase.rpc("social_counts_by_status");
   const countMap: Record<string, number> = {};
-  for (const r of (counts.data ?? []) as { status: string }[]) {
-    countMap[r.status] = (countMap[r.status] ?? 0) + 1;
+  for (const r of (countRows ?? []) as { status: string; n: number }[]) {
+    countMap[r.status] = Number(r.n);
   }
 
   return (
