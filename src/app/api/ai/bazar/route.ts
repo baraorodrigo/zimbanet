@@ -15,7 +15,7 @@ export const GET = withAgent(
     const sb = createAdminClient();
     const { data, error } = await sb
       .from("bazar_items")
-      .select("id, type, category, title, price, bairro, status, created_at")
+      .select("id, type, category, title, description, price_label, bairro, status, created_at")
       .eq("status", status)
       .order("created_at", { ascending: false })
       .limit(limit);
