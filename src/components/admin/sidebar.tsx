@@ -21,6 +21,7 @@ const GROUPS: Group[] = [
     items: [
       { href: "/admin/pauta", label: "Pauta", hint: "Sugestões do Curador" },
       { href: "/admin/fila", label: "Fila", hint: "Revisar e publicar" },
+      { href: "/admin/capa", label: "Capa do portal", hint: "Capa e destaques da home" },
       {
         href: "/admin/materias",
         label: "Matérias",
