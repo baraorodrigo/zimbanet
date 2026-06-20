@@ -135,6 +135,55 @@ def submit_url_to_radar(url: str, note: str = "") -> dict:
 
 
 @mcp.tool()
+def definir_capa(article_id: str, ligar: bool = True) -> dict:
+    """Fixa (ligar=True) ou tira (ligar=False) a matéria como CAPA principal da home.
+    Só 1 capa por vez — fixar uma desmarca a anterior. Só funciona em matéria
+    publicada. A home já é automática (a mais recente vira capa sozinha) — use isso
+    só pra FIXAR uma matéria importante no topo."""
+    return articles_tools.home_flags(_client, article_id, cover=ligar)
+
+
+@mcp.tool()
+def definir_destaque(article_id: str, ligar: bool = True) -> dict:
+    """Põe (ligar=True) ou tira (False) a matéria dos DESTAQUES da home. Pode ter
+    vários, mas a home sempre reserva 2 vagas pras mais recentes. Só publicada."""
+    return articles_tools.home_flags(_client, article_id, highlight=ligar)
+
+
+@mcp.tool()
+def marcar_urgente(article_id: str, ligar: bool = True) -> dict:
+    """Liga (ligar=True) ou desliga (False) a barra vermelha de URGENTE/BREAKING no
+    topo do site com essa matéria. Use SÓ pra fato realmente urgente e atual. Só
+    matéria publicada."""
+    return articles_tools.home_flags(_client, article_id, breaking=ligar)
+
+
+@mcp.tool()
+def arquivar(article_id: str) -> dict:
+    """ARQUIVA a matéria — tira do ar e do acervo ativo (fica guardada, recuperável).
+    Use pra aposentar notícia VELHA ou RUIM. Diferente de despublicar (que volta a
+    rascunho pra você corrigir e republicar), arquivar é pra tirar de vez. Também
+    remove de capa/destaque/urgente."""
+    return articles_tools.archive_article(_client, article_id)
+
+
+@mcp.tool()
+def pendencias() -> dict:
+    """O que precisa da sua atenção AGORA: nº de rascunhos, matérias em revisão,
+    posts do mural e classificados do bazar pra moderar, e pautas frescas esperando
+    virar matéria. Use no começo do turno pra saber o que fazer."""
+    return articles_tools.pendencias(_client)
+
+
+@mcp.tool()
+def buscar_materias(q: str, status: str = "published", limit: int = 30) -> dict:
+    """Busca matérias por palavra no título/lede. status ∈ 'published' | 'draft' |
+    'review' | 'archived'. Use pra ACHAR uma matéria específica — ex.: pra arquivar
+    uma velha, destacar uma boa, ou corrigir."""
+    return articles_tools.search_articles(_client, q, status, limit)
+
+
+@mcp.tool()
 def list_pauta(decision: str = "investigate", limit: int = 20) -> dict:
     """Lista as PAUTAS pra você trabalhar e gerar mais conteúdo. decision ∈
     'investigate' (pra investigar — o default), 'approve' (já aprovadas) ou

@@ -40,3 +40,34 @@ def publish_article(client: ZimbanetClient, article_id: str) -> dict:
 
 def unpublish_article(client: ZimbanetClient, article_id: str) -> dict:
     return client.post(f"/api/ai/articles/{article_id}/unpublish")
+
+
+def home_flags(
+    client: ZimbanetClient,
+    article_id: str,
+    cover: bool | None = None,
+    highlight: bool | None = None,
+    breaking: bool | None = None,
+) -> dict:
+    body: dict = {}
+    if cover is not None:
+        body["cover"] = cover
+    if highlight is not None:
+        body["highlight"] = highlight
+    if breaking is not None:
+        body["breaking"] = breaking
+    return client.post(f"/api/ai/articles/{article_id}/home", body)
+
+
+def archive_article(client: ZimbanetClient, article_id: str) -> dict:
+    return client.post(f"/api/ai/articles/{article_id}/archive")
+
+
+def search_articles(
+    client: ZimbanetClient, q: str, status: str = "published", limit: int = 30
+) -> dict:
+    return client.get("/api/ai/articles", params={"status": status, "limit": limit, "q": q})
+
+
+def pendencias(client: ZimbanetClient) -> dict:
+    return client.get("/api/ai/pendencias")

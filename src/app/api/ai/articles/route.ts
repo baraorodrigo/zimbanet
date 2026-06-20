@@ -21,20 +21,27 @@ function asArray(v: unknown): string[] | undefined {
   return undefined;
 }
 
-// GET /api/ai/articles?status=draft&limit=50  → lista matérias por status
+// GET /api/ai/articles?status=draft&limit=50&q=texto  → lista/busca matérias.
+// q (opcional) filtra por palavra no título/lede — pra ACHAR uma matéria.
 export const GET = withAgent(
   { tool: "list_articles", action: "read", resource: "articles" },
   async (req) => {
     const url = new URL(req.url);
     const status = url.searchParams.get("status") ?? "draft";
     const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 50), 1), 100);
+    const q = (url.searchParams.get("q") ?? "").trim();
     const sb = createAdminClient();
-    const { data, error } = await sb
+    let query = sb
       .from("articles")
       .select(LIST_FIELDS)
       .eq("status", status)
       .order("created_at", { ascending: false })
       .limit(limit);
+    if (q) {
+      const p = `%${q.replace(/[%_]/g, "\\$&")}%`;
+      query = query.or(`title.ilike.${p},lede.ilike.${p}`);
+    }
+    const { data, error } = await query;
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, data });
   },
