@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAgent } from "@/lib/ai/with-agent";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { MAX_SOURCE_AGE_DAYS } from "@/lib/ai/recency";
 
 export const dynamic = "force-dynamic";
 
@@ -32,15 +33,20 @@ export const GET = withAgent(
     const url = new URL(req.url);
     const decision = (url.searchParams.get("decision") || "investigate").toLowerCase();
     const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 20), 1), 50);
+    // só pautas cuja FONTE é dos últimos N dias (default = limite de notícia velha).
+    const dias = Math.min(Math.max(Number(url.searchParams.get("dias") ?? MAX_SOURCE_AGE_DAYS), 1), 60);
     const sb = createAdminClient();
 
+    // over-fetch: a filtragem por recência + "já tem matéria" é em JS, então
+    // puxamos mais candidatas pra sobrar o suficiente depois do filtro.
+    const fetchCap = Math.min(200, Math.max(limit * 6, 60));
     const { data: scoredData, error } = await sb
       .from("scored_items")
       .select("id, raw_item_id, relevance_score, classification, editoria, ai_reasoning, scored_at")
       .eq("decision", decision)
       .order("relevance_score", { ascending: false })
       .order("scored_at", { ascending: false })
-      .limit(limit);
+      .limit(fetchCap);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
     const scored = (scoredData ?? []) as ScoredRow[];
@@ -77,6 +83,23 @@ export const GET = withAgent(
       };
     });
 
-    return NextResponse.json({ ok: true, data: { decision, total: items.length, items } });
+    // Só pautas ACIONÁVEIS: recentes (fonte dos últimos `dias`; sem-data entra
+    // pois não dá pra afirmar que é velha) e que ainda não viraram matéria.
+    // Mais recentes primeiro — o agente trabalha as frescas, nunca o backlog velho.
+    const cutoff = Date.now() - dias * 86_400_000;
+    const acionaveis = items
+      .filter((it) => !it.ja_tem_materia)
+      .filter((it) => !it.publicado_fonte || new Date(it.publicado_fonte).getTime() >= cutoff)
+      .sort((a, b) => {
+        const ta = a.publicado_fonte ? new Date(a.publicado_fonte).getTime() : 0;
+        const tb = b.publicado_fonte ? new Date(b.publicado_fonte).getTime() : 0;
+        return tb - ta;
+      })
+      .slice(0, limit);
+
+    return NextResponse.json({
+      ok: true,
+      data: { decision, dias, total: acionaveis.length, items: acionaveis },
+    });
   },
 );

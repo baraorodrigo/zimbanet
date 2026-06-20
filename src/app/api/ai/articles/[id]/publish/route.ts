@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { withAgent } from "@/lib/ai/with-agent";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { finalizeArticle } from "@/lib/radar";
+import { MAX_SOURCE_AGE_DAYS, sourceAgeDaysByScoredId } from "@/lib/ai/recency";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +69,18 @@ export const POST = withAgent(
           ok: false,
           error:
             "matéria sem foto não publica. Defina a imagem de capa com definir_imagem (passe a URL de uma foto real da reportagem) antes de publicar.",
+        },
+        { status: 422 },
+      );
+    }
+
+    // TRAVA NOTÍCIA VELHA: fonte mais velha que o limite não publica como notícia.
+    const ageDays = await sourceAgeDaysByScoredId(sb, cur.scored_item_id);
+    if (ageDays !== null && ageDays > MAX_SOURCE_AGE_DAYS) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `matéria de fato antigo não publica como notícia: a fonte é de ${Math.round(ageDays)} dias atrás (limite ${MAX_SOURCE_AGE_DAYS}). Notícia é fato RECENTE — trabalhe uma pauta atual.`,
         },
         { status: 422 },
       );

@@ -3,6 +3,7 @@ import { withAgent } from "@/lib/ai/with-agent";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { draftFromScored } from "@/lib/radar";
 import { downloadAndStoreImage } from "@/lib/storage-images";
+import { MAX_SOURCE_AGE_DAYS, sourceAgeDaysByScoredId } from "@/lib/ai/recency";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,20 @@ export const POST = withAgent(
   { tool: "trabalhar_pauta", action: "write", resource: "radar" },
   async (_req, { agent }, route) => {
     const scoredId = route.params.id;
+    const sb = createAdminClient();
+
+    // TRAVA NOTÍCIA VELHA: pauta com fonte mais velha que o limite não vira
+    // matéria (evita pescar o backlog antigo e publicar como se fosse hoje).
+    const ageDays = await sourceAgeDaysByScoredId(sb, scoredId);
+    if (ageDays !== null && ageDays > MAX_SOURCE_AGE_DAYS) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `pauta antiga: a fonte é de ${Math.round(ageDays)} dias atrás (limite ${MAX_SOURCE_AGE_DAYS}). Não vale virar notícia. Trabalhe pautas recentes (list_pauta já mostra só as dos últimos dias).`,
+        },
+        { status: 422 },
+      );
+    }
 
     let res: Awaited<ReturnType<typeof draftFromScored>>;
     try {
@@ -25,8 +40,6 @@ export const POST = withAgent(
       const status = /\b422\b/.test(msg) ? 422 : 502;
       return NextResponse.json({ ok: false, error: msg }, { status });
     }
-
-    const sb = createAdminClient();
 
     // Best-effort: garante foto de capa a partir da imagem da fonte.
     let fotoDefinida = false;
