@@ -6,7 +6,7 @@ detalhe do client. Cada função recebe/devolve dataclass ou dict simples.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -353,14 +353,21 @@ def fetch_drafts_for_autopublish(
     max_risk: float,
     limit: int = 5,
 ) -> list[Article]:
-    """Drafts/reviews confiáveis o suficiente pra ir ao ar sozinhos."""
+    """Drafts/reviews confiáveis o suficiente pra ir ao ar sozinhos.
+
+    Filtra apenas artigos criados nas últimas 48h para evitar publicar
+    notícia velha que ficou esquecida na fila.
+    """
     sb = supabase_client()
+    # Só artigos criados nas últimas 48h
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
     resp = (
         sb.table("articles")
         .select("*")
         .in_("status", [ArticleStatus.draft.value, ArticleStatus.review.value])
         .gte("confidence", min_confidence)
         .lte("risk_score", max_risk)
+        .gte("created_at", cutoff.isoformat())
         .order("created_at", desc=True)
         .limit(limit)
         .execute()
@@ -369,11 +376,28 @@ def fetch_drafts_for_autopublish(
 
 
 def publish_article(article_id: str, *, auto: bool = False) -> Article | None:
-    """Promove um artigo a publicado. Aplica published_at=now."""
+    """Promove um artigo a publicado. Aplica published_at=now.
+
+    Recusa publicar artigos com mais de 7 dias de idade para evitar
+    notícia velha na capa do site.
+    """
     sb = supabase_client()
+    # Busca o artigo primeiro pra checar a idade
+    existing = sb.table("articles").select("*").eq("id", article_id).limit(1).execute()
+    rows = existing.data or []
+    if not rows:
+        return None
+    article = Article.model_validate(rows[0])
+    # Não publica artigo com mais de 7 dias
+    max_age = timedelta(days=7)
+    now = datetime.now(timezone.utc)
+    created = article.created_at.replace(tzinfo=timezone.utc) if article.created_at.tzinfo is None else article.created_at
+    if now - created > max_age:
+        log.warning("publish_article_too_old", article_id=article_id, created_at=article.created_at.isoformat())
+        return None
     payload = {
         "status": ArticleStatus.published.value,
-        "published_at": datetime.now(timezone.utc).isoformat(),
+        "published_at": now.isoformat(),
         "auto_published": auto,
     }
     resp = (
