@@ -135,6 +135,28 @@ def submit_url_to_radar(url: str, note: str = "") -> dict:
 
 
 @mcp.tool()
+def list_pauta(decision: str = "investigate", limit: int = 20) -> dict:
+    """Lista as PAUTAS pra você trabalhar e gerar mais conteúdo. decision ∈
+    'investigate' (pra investigar — o default), 'approve' (já aprovadas) ou
+    'reject'. Cada item traz scored_item_id, título, url e imagem da fonte,
+    relevância, editoria, o motivo da curadoria e 'ja_tem_materia' (pula esses).
+    Fluxo pra render conteúdo: list_pauta('investigate') → escolha as boas →
+    trabalhar_pauta(scored_item_id) → get_article → publicar."""
+    return radar_tools.list_pauta(_client, decision, limit)
+
+
+@mcp.tool()
+def trabalhar_pauta(scored_item_id: str) -> dict:
+    """Transforma uma PAUTA em rascunho de matéria: roda Investigador + Redator
+    no radar e cria a matéria (status draft, com fonte rastreável e — quando dá —
+    já com a foto da fonte). Aceita pauta aprovada ou em investigação (rejeitada
+    não). Retorna article_id + slug + foto_definida. Depois revise com get_article,
+    ajuste se precisar (update_article), garanta a foto (definir_imagem) e
+    publicar. É o caminho certo pra gerar conteúdo — NUNCA escreva de cabeça."""
+    return radar_tools.trabalhar_pauta(_client, scored_item_id)
+
+
+@mcp.tool()
 def daily_report() -> dict:
     """Resumo diário: publicadas hoje, rascunhos na fila, distribuição da pauta, coletadas hoje."""
     return analytics_tools.daily_report(_client)
