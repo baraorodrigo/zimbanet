@@ -3,6 +3,8 @@
 // (todos fazem SSR e expõem og:image/og:title). Tem fallback gracioso pra cada
 // campo: se o site não expõe, retorna null e o editor preenche manualmente.
 
+import { safeFetch } from "@/lib/net/safe-fetch";
+
 const FETCH_TIMEOUT_MS = 8000;
 const USER_AGENT =
   "Mozilla/5.0 (compatible; ZimbanetBot/0.1; +https://zimbanet.com)";
@@ -213,13 +215,12 @@ export async function scrapeArticleByUrl(url: string): Promise<ScrapedArticle> {
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   let html: string;
   try {
-    const resp = await fetch(url, {
+    const resp = await safeFetch(url, {
       headers: {
         "User-Agent": USER_AGENT,
         Accept: "text/html,application/xhtml+xml",
         "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
       },
-      redirect: "follow",
       signal: controller.signal,
     });
     clearTimeout(timeout);

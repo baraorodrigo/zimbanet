@@ -84,7 +84,7 @@ export default async function FontesPage() {
 
       <div className="mt-6 flex items-center justify-between gap-4 flex-wrap">
         <p className="text-fs-13 text-ink-500">
-          Pra coletar agora, rode <code className="font-mono text-fs-12 px-1.5 py-0.5 rounded border border-border-subtle bg-off-white">npm run curador</code> no terminal.
+          Pra coletar agora, use os botões em <Link href="/admin/autonomo" className="font-semibold text-zimba-blue underline">Painel → Autônomo</Link> (Coletar / Curador).
         </p>
         <Link
           href="/admin/fontes/nova"

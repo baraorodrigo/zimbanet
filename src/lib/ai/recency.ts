@@ -1,18 +1,31 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// Fonte mais velha que isto não vira notícia. "Notícia" é fato recente —
-// evita o agente pescar pauta antiga do backlog e publicar como se fosse hoje.
-export const MAX_SOURCE_AGE_DAYS = 7;
+// Fuso editorial do ZIMBANET: notícia de ontem não sobe como se fosse de hoje.
+export const NEWS_TIMEZONE = "America/Sao_Paulo";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
-// Idade (em dias) da reportagem-fonte de um scored_item, via raw_item.published_at.
-// Retorna null quando não há data conhecida (aí não dá pra afirmar que é velha —
-// as outras travas, fonte+foto, seguem valendo).
-export async function sourceAgeDaysByScoredId(
+function dayKeyInNewsTz(input: string | Date): string {
+  const value = input instanceof Date ? input : new Date(input);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: NEWS_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(value);
+}
+
+export function isFromTodayInNewsTz(
+  input: string | Date,
+  now: Date = new Date(),
+): boolean {
+  return dayKeyInNewsTz(input) === dayKeyInNewsTz(now);
+}
+
+export async function sourcePublishedAtByScoredId(
   sb: AdminClient,
   scoredItemId: string | null | undefined,
-): Promise<number | null> {
+): Promise<string | null> {
   if (!scoredItemId) return null;
   const { data: sc } = await sb
     .from("scored_items")
@@ -26,7 +39,28 @@ export async function sourceAgeDaysByScoredId(
     .select("published_at")
     .eq("id", rawId)
     .maybeSingle();
-  const pub = (raw as { published_at?: string | null } | null)?.published_at;
+  return (raw as { published_at?: string | null } | null)?.published_at ?? null;
+}
+
+// Idade (em dias) da reportagem-fonte de um scored_item, via raw_item.published_at.
+// Retorna null quando não há data conhecida.
+export async function sourceAgeDaysByScoredId(
+  sb: AdminClient,
+  scoredItemId: string | null | undefined,
+): Promise<number | null> {
+  const pub = await sourcePublishedAtByScoredId(sb, scoredItemId);
   if (!pub) return null;
   return (Date.now() - new Date(pub).getTime()) / 86_400_000;
+}
+
+// Regra editorial do Rodrigo: notícia sem data de HOJE não sobe.
+// Se não houver data conhecida, devolve null e deixa outras travas decidirem.
+export async function sourceIsFromTodayByScoredId(
+  sb: AdminClient,
+  scoredItemId: string | null | undefined,
+  now: Date = new Date(),
+): Promise<boolean | null> {
+  const pub = await sourcePublishedAtByScoredId(sb, scoredItemId);
+  if (!pub) return null;
+  return dayKeyInNewsTz(pub) === dayKeyInNewsTz(now);
 }

@@ -26,4 +26,12 @@ export const AGENT_PRESETS: Record<
     type: "director",
     permissions: { read: ["all"], write: [] },
   },
+  publisher: {
+    label: "Publisher — cria, publica, modera e controla a home (autonomia total)",
+    type: "publisher",
+    permissions: {
+      read: ["all"],
+      write: ["article_content", "slug", "radar", "publish", "homepage", "community", "bazar"],
+    },
+  },
 };

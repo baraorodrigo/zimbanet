@@ -10,6 +10,7 @@ import {
   type MuralCommentRow,
 } from "@/lib/db/community";
 import { createClient } from "@/lib/supabase/server";
+import { BAIRROS } from "@/lib/community/bairros";
 import MuralComposer from "./composer";
 import PostCard from "./post-card";
 
@@ -21,16 +22,9 @@ export const metadata: Metadata = {
     "Mural comunitário aberto: reclamações, achados, perdidos, dicas, denúncias. Imbituba conversando com Imbituba.",
 };
 
-const bairros = [
-  "Tudo",
-  "Centro",
-  "Mirim",
-  "Vila Nova",
-  "Praia da Vila",
-  "Praia do Rosa",
-  "Ibiraquera",
-  "Garopaba",
-];
+// Filtros derivados da fonte única — casam exatamente com o que o composer grava
+// (antes a lista era hardcoded e 3 botões filtravam pra um valor que nenhum post tem).
+const bairros = ["Tudo", ...BAIRROS.filter((b) => b !== "Outro / não listado")];
 
 function initialsFromUser(name: string | null, fallback: string | null) {
   const src = (name && name.trim()) || (fallback ? fallback.split("@")[0] : "") || "VC";
@@ -39,10 +33,16 @@ function initialsFromUser(name: string | null, fallback: string | null) {
   return src.slice(0, 2).toUpperCase();
 }
 
-export default async function ZimbaMilGrauPage() {
+export default async function ZimbaMilGrauPage({
+  searchParams,
+}: {
+  searchParams: { bairro?: string; ate?: string };
+}) {
   const supabase = createClient();
-  const [{ posts, source }, userResult] = await Promise.all([
-    getMuralPostsWithFallback(36),
+  const bairroSel = searchParams.bairro?.trim() || undefined;
+  const limit = Math.min(Math.max(Number(searchParams.ate) || 36, 36), 240);
+  const [{ posts }, userResult] = await Promise.all([
+    getMuralPostsWithFallback(limit, bairroSel),
     supabase.auth.getUser(),
   ]);
   const user = userResult.data.user;
@@ -52,11 +52,10 @@ export default async function ZimbaMilGrauPage() {
         user.email ?? user.phone ?? null,
       )
     : "VC";
-  // Se vier do mock, multiplica pra parecer cheio. Se for Supabase, usa o que tem.
-  const feed = source === "supabase" ? posts : [...posts, ...posts, ...posts].slice(0, 24);
+  const feed = posts;
 
-  // Carrega likes do user atual + comentários (só pra posts reais)
-  const realIds = source === "supabase" ? feed.map((p) => p.id) : [];
+  // Carrega likes do user atual + comentários
+  const realIds = feed.map((p) => p.id);
   const [likedSet, commentsByPost] = await Promise.all([
     user && realIds.length ? fetchMuralLikedSet(user.id, realIds) : Promise.resolve(new Set<string>()),
     realIds.length ? fetchMuralComments(realIds) : Promise.resolve(new Map()),
@@ -126,18 +125,26 @@ export default async function ZimbaMilGrauPage() {
           <div className="min-w-0">
             {/* Filtros bairro */}
             <div className="mb-6 flex flex-wrap gap-2 pb-4 border-b border-border-subtle">
-              {bairros.map((b, i) => (
-                <button
-                  key={b}
-                  className={`text-[11px] uppercase tracking-[0.2em] font-bold px-3.5 h-9 border transition-colors ${
-                    i === 0
-                      ? "border-navy bg-navy text-off-white"
-                      : "border-navy/15 text-navy hover:border-navy"
-                  }`}
-                >
-                  {b}
-                </button>
-              ))}
+              {bairros.map((b) => {
+                const isTudo = b === "Tudo";
+                const active = isTudo ? !bairroSel : bairroSel === b;
+                const href = isTudo
+                  ? "/zimbamilgrau"
+                  : `/zimbamilgrau?bairro=${encodeURIComponent(b)}`;
+                return (
+                  <Link
+                    key={b}
+                    href={href}
+                    className={`text-[11px] uppercase tracking-[0.2em] font-bold px-3.5 h-9 border inline-flex items-center transition-colors ${
+                      active
+                        ? "border-navy bg-navy text-off-white"
+                        : "border-navy/15 text-navy hover:border-navy"
+                    }`}
+                  >
+                    {b}
+                  </Link>
+                );
+              })}
             </div>
 
             {/* Feed */}
@@ -171,11 +178,19 @@ export default async function ZimbaMilGrauPage() {
               })}
             </ul>
 
-            <div className="mt-8 text-center">
-              <button className="border border-navy/20 hover:border-navy text-navy text-[11px] uppercase tracking-[0.24em] font-bold px-8 h-12 inline-flex items-center transition-colors">
-                Carregar mais posts
-              </button>
-            </div>
+            {feed.length >= limit && (
+              <div className="mt-8 text-center">
+                <Link
+                  href={`/zimbamilgrau?${new URLSearchParams({
+                    ...(bairroSel ? { bairro: bairroSel } : {}),
+                    ate: String(limit + 24),
+                  }).toString()}`}
+                  className="border border-navy/20 hover:border-navy text-navy text-[11px] uppercase tracking-[0.24em] font-bold px-8 h-12 inline-flex items-center transition-colors"
+                >
+                  Carregar mais posts
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* SIDEBAR */}

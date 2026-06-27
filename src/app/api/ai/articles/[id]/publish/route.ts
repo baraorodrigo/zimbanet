@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { withAgent } from "@/lib/ai/with-agent";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { finalizeArticle } from "@/lib/radar";
-import { MAX_SOURCE_AGE_DAYS, sourceAgeDaysByScoredId } from "@/lib/ai/recency";
+import { sourceIsFromTodayByScoredId } from "@/lib/ai/recency";
 
 export const dynamic = "force-dynamic";
 
@@ -19,14 +19,23 @@ export const POST = withAgent(
     const sb = createAdminClient();
 
     // Interruptor mestre: se desligado, o agente não publica.
+    // FAIL-CLOSED: o agente só publica se a flag existir E for 'true'. Ausente,
+    // 'false', ou qualquer outro valor → bloqueia (423). Assim um banco novo/
+    // restaurado, ou a flag apagada, NÃO solta publicação autônoma sem ninguém
+    // ligar. A migration seeda 'true' (com ON CONFLICT DO NOTHING).
     const { data: flag } = await sb
       .from("app_settings")
       .select("value")
       .eq("key", "agent_autopublish_enabled")
       .maybeSingle();
-    if (flag && String(flag.value).toLowerCase() === "false") {
+    const autopublishOn = String(flag?.value ?? "").toLowerCase() === "true";
+    if (!autopublishOn) {
       return NextResponse.json(
-        { ok: false, error: "autopublish desligado pelo humano (app_settings)" },
+        {
+          ok: false,
+          error:
+            "autopublish desligado (app_settings.agent_autopublish_enabled != 'true'). Ligue o interruptor pra o agente publicar.",
+        },
         { status: 423 },
       );
     }
@@ -74,13 +83,15 @@ export const POST = withAgent(
       );
     }
 
-    // TRAVA NOTÍCIA VELHA: fonte mais velha que o limite não publica como notícia.
-    const ageDays = await sourceAgeDaysByScoredId(sb, cur.scored_item_id);
-    if (ageDays !== null && ageDays > MAX_SOURCE_AGE_DAYS) {
+    // TRAVA NOTÍCIA VELHA: se a fonte tem data conhecida, precisa ser de HOJE
+    // no fuso editorial do portal. Notícia de ontem não sobe como se fosse de hoje.
+    const sourceIsToday = await sourceIsFromTodayByScoredId(sb, cur.scored_item_id);
+    if (sourceIsToday === false) {
       return NextResponse.json(
         {
           ok: false,
-          error: `matéria de fato antigo não publica como notícia: a fonte é de ${Math.round(ageDays)} dias atrás (limite ${MAX_SOURCE_AGE_DAYS}). Notícia é fato RECENTE — trabalhe uma pauta atual.`,
+          error:
+            "matéria de fato antigo não publica como notícia: a fonte não é de hoje. Se o fato não aconteceu hoje, não sobe no portal como notícia nova.",
         },
         { status: 422 },
       );

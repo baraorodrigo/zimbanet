@@ -172,6 +172,23 @@ export async function updateSource(
   const parsed = parseInput(formData, { idRequired: false });
   if ("error" in parsed) return { ok: false, error: parsed.error };
 
+  const { data: current } = await supabase
+    .from("sources")
+    .select("config")
+    .eq("id", id)
+    .maybeSingle<{ config: Record<string, unknown> | null }>();
+  if (!current) return { ok: false, error: "Fonte não encontrada." };
+
+  const prevConfig = current.config ?? {};
+  const nextConfig: Record<string, unknown> = {
+    ...prevConfig,
+    ...parsed.config,
+  };
+  if (parsed.config.url) nextConfig.url = parsed.config.url;
+  else delete nextConfig.url;
+  if (parsed.config.filters) nextConfig.filters = parsed.config.filters;
+  else delete nextConfig.filters;
+
   // ID é primary key — não muda em update.
   const { error } = await supabase
     .from("sources")
@@ -181,7 +198,7 @@ export async function updateSource(
       priority: parsed.priority,
       city: parsed.city,
       active: parsed.active,
-      config: parsed.config,
+      config: nextConfig,
     })
     .eq("id", id);
 

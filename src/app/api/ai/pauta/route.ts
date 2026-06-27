@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAgent } from "@/lib/ai/with-agent";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { MAX_SOURCE_AGE_DAYS } from "@/lib/ai/recency";
+import { isFromTodayInNewsTz } from "@/lib/ai/recency";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +33,9 @@ export const GET = withAgent(
     const url = new URL(req.url);
     const decision = (url.searchParams.get("decision") || "investigate").toLowerCase();
     const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 20), 1), 50);
-    // só pautas cuja FONTE é dos últimos N dias (default = limite de notícia velha).
-    const dias = Math.min(Math.max(Number(url.searchParams.get("dias") ?? MAX_SOURCE_AGE_DAYS), 1), 60);
+    // Default editorial: só pauta com data de HOJE. Se precisar abrir janela,
+    // o caller ainda pode passar ?dias=N explicitamente.
+    const dias = Math.min(Math.max(Number(url.searchParams.get("dias") ?? 1), 1), 60);
     const sb = createAdminClient();
 
     // over-fetch: a filtragem por recência + "já tem matéria" é em JS, então
@@ -83,13 +84,18 @@ export const GET = withAgent(
       };
     });
 
-    // Só pautas ACIONÁVEIS: recentes (fonte dos últimos `dias`; sem-data entra
-    // pois não dá pra afirmar que é velha) e que ainda não viraram matéria.
-    // Mais recentes primeiro — o agente trabalha as frescas, nunca o backlog velho.
+    // Só pautas ACIONÁVEIS: recentes e que ainda não viraram matéria.
+    // Default = HOJE no fuso editorial; com ?dias=N dá pra abrir a janela.
+    // Sem data entra, porque não dá pra afirmar que é velha.
     const cutoff = Date.now() - dias * 86_400_000;
     const acionaveis = items
       .filter((it) => !it.ja_tem_materia)
-      .filter((it) => !it.publicado_fonte || new Date(it.publicado_fonte).getTime() >= cutoff)
+      .filter((it) => {
+        if (!it.publicado_fonte) return true;
+        return dias === 1
+          ? isFromTodayInNewsTz(it.publicado_fonte)
+          : new Date(it.publicado_fonte).getTime() >= cutoff;
+      })
       .sort((a, b) => {
         const ta = a.publicado_fonte ? new Date(a.publicado_fonte).getTime() : 0;
         const tb = b.publicado_fonte ? new Date(b.publicado_fonte).getTime() : 0;

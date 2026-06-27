@@ -6,9 +6,10 @@ detalhe do client. Cada função recebe/devolve dataclass ou dict simples.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from app.clients import supabase_client
 from app.db.types import (
@@ -29,10 +30,11 @@ from app.db.types import (
 from app.logging import get_logger
 
 log = get_logger("repositories")
+NEWS_TZ = ZoneInfo("America/Sao_Paulo")
 
 
 # ============================================================================
-# sources
+
 # ============================================================================
 def fetch_active_sources(limit: int | None = None) -> list[Source]:
     sb = supabase_client()
@@ -54,7 +56,7 @@ def update_source_run(
     source_id: str, *, error: bool, seen: int = 0, status: str | None = None
 ) -> None:
     sb = supabase_client()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     payload: dict[str, Any] = {
         "last_fetched_at": now,
         "last_status": (status or ("erro" if error else "ok"))[:200],
@@ -131,7 +133,7 @@ def insert_scored_item(
         "ai_reasoning": output.reasoning,
         "prompt_version": prompt_version,
         "status": ScoredItemStatus.scored.value,
-        "scored_at": datetime.now(timezone.utc).isoformat(),
+        "scored_at": datetime.now(UTC).isoformat(),
     }
     resp = sb.table("scored_items").upsert(payload, on_conflict="id").execute()
     row = (resp.data or [None])[0]
@@ -193,7 +195,7 @@ def insert_enriched_item(
         "web_searches": output.web_searches,
         "confidence": output.confidence,
         "prompt_version": prompt_version,
-        "enriched_at": datetime.now(timezone.utc).isoformat(),
+        "enriched_at": datetime.now(UTC).isoformat(),
     }
     resp = sb.table("enriched_items").insert(payload).execute()
     row = (resp.data or [None])[0]
@@ -295,7 +297,7 @@ def update_article_visual(
 def update_article_review(article_id: str, output: ReviewOutput) -> None:
     """Persiste o selo do Revisor em articles.ai_review (jsonb)."""
     sb = supabase_client()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     sb.table("articles").update(
         {
             "ai_review": {
@@ -360,7 +362,7 @@ def fetch_drafts_for_autopublish(
     """
     sb = supabase_client()
     # Só artigos criados nas últimas 48h
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+    cutoff = datetime.now(UTC) - timedelta(hours=48)
     resp = (
         sb.table("articles")
         .select("*")
@@ -375,26 +377,93 @@ def fetch_drafts_for_autopublish(
     return [Article.model_validate(r) for r in (resp.data or [])]
 
 
+def _parse_db_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
+
+
+def _source_published_at_by_scored_item(sb: Any, scored_item_id: str | None) -> datetime | None:
+    if not scored_item_id:
+        return None
+    scored = (
+        sb.table("scored_items")
+        .select("raw_item_id")
+        .eq("id", scored_item_id)
+        .limit(1)
+        .execute()
+    )
+    scored_rows = scored.data or []
+    if not scored_rows:
+        return None
+    raw_item_id = scored_rows[0].get("raw_item_id")
+    if not raw_item_id:
+        return None
+    raw = (
+        sb.table("raw_items")
+        .select("published_at")
+        .eq("id", raw_item_id)
+        .limit(1)
+        .execute()
+    )
+    raw_rows = raw.data or []
+    if not raw_rows:
+        return None
+    published_at = raw_rows[0].get("published_at")
+    if not isinstance(published_at, str):
+        return None
+    return _parse_db_datetime(published_at)
+
+
+def _is_today_in_news_tz(dt: datetime, now: datetime) -> bool:
+    left = dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
+    right = now if now.tzinfo is not None else now.replace(tzinfo=UTC)
+    return left.astimezone(NEWS_TZ).date() == right.astimezone(NEWS_TZ).date()
+
+
 def publish_article(article_id: str, *, auto: bool = False) -> Article | None:
     """Promove um artigo a publicado. Aplica published_at=now.
 
-    Recusa publicar artigos com mais de 7 dias de idade para evitar
-    notícia velha na capa do site.
+    Se a matéria veio do radar e a fonte tem data conhecida, ela precisa ser de
+    HOJE no fuso editorial do portal. Sem data de hoje, não sobe como notícia.
+    Se a fonte não tiver data, mantém a trava antiga de 7 dias pelo created_at.
     """
     sb = supabase_client()
-    # Busca o artigo primeiro pra checar a idade
     existing = sb.table("articles").select("*").eq("id", article_id).limit(1).execute()
     rows = existing.data or []
     if not rows:
         return None
     article = Article.model_validate(rows[0])
-    # Não publica artigo com mais de 7 dias
-    max_age = timedelta(days=7)
-    now = datetime.now(timezone.utc)
-    created = article.created_at.replace(tzinfo=timezone.utc) if article.created_at.tzinfo is None else article.created_at
-    if now - created > max_age:
-        log.warning("publish_article_too_old", article_id=article_id, created_at=article.created_at.isoformat())
-        return None
+    now = datetime.now(UTC)
+
+    source_published_at = _source_published_at_by_scored_item(sb, article.scored_item_id)
+    if source_published_at is not None:
+        if not _is_today_in_news_tz(source_published_at, now):
+            log.warning(
+                "publish_article_source_not_today",
+                article_id=article_id,
+                source_published_at=source_published_at.isoformat(),
+            )
+            return None
+    else:
+        max_age = timedelta(days=7)
+        created = (
+            article.created_at.replace(tzinfo=UTC)
+            if article.created_at.tzinfo is None
+            else article.created_at
+        )
+        if now - created > max_age:
+            log.warning(
+                "publish_article_too_old",
+                article_id=article_id,
+                created_at=article.created_at.isoformat(),
+            )
+            return None
+
     payload = {
         "status": ArticleStatus.published.value,
         "published_at": now.isoformat(),

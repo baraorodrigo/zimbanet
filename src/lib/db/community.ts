@@ -134,11 +134,11 @@ export async function fetchBazarItems(opts: {
 
 // Composição de homepage / pages — só Supabase. Quando vazio, retorna lista
 // vazia e a UI renderiza estado vazio (sem mock em prod).
-export async function getMuralPostsWithFallback(limit = 24): Promise<{
+export async function getMuralPostsWithFallback(limit = 24, bairro?: string): Promise<{
   posts: MuralPost[];
   source: "supabase" | "mock";
 }> {
-  const real = await fetchMuralPosts({ limit });
+  const real = await fetchMuralPosts({ limit, bairro });
   return { posts: real, source: "supabase" };
 }
 

@@ -3,20 +3,10 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { BAIRROS } from "@/lib/community/bairros";
 
-const ALLOWED_BAIRROS = [
-  "Centro",
-  "Vila Nova",
-  "Praia da Vila",
-  "Itapirubá",
-  "Mirim",
-  "Nova Brasília",
-  "Alto Arroio",
-  "Guarda do Embaú",
-  "Sambaqui",
-  "Arroio",
-  "Outro / não listado",
-];
+// Fonte única em @/lib/community/bairros (compartilhada com os filtros da página).
+const ALLOWED_BAIRROS: readonly string[] = BAIRROS;
 
 const ALLOWED_BAZAR_TYPES = ["Vende", "Doa", "Troca", "Procura"] as const;
 

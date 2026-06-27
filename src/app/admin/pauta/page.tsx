@@ -615,10 +615,11 @@ function EmptyState() {
       <p className="font-display font-black text-fs-20 text-navy">Nada na pauta</p>
       <p className="mt-2 text-fs-14 text-ink-500 max-w-[52ch] mx-auto">
         Quando o Curador rodar e encontrar matérias relevantes, elas aparecem aqui pra você
-        decidir o que vira matéria do ZIMBANET. Pra rodar manualmente:{" "}
-        <code className="font-mono text-fs-12 px-1.5 py-0.5 rounded bg-off-white border border-border-subtle">
-          npm run curador
-        </code>
+        decidir o que vira matéria do ZIMBANET. Pra rodar agora, use os botões em{" "}
+        <a href="/admin/autonomo" className="font-semibold text-zimba-blue underline">
+          Painel → Autônomo
+        </a>{" "}
+        (Coletar / Curador).
       </p>
     </div>
   );

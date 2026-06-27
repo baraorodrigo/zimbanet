@@ -9,6 +9,7 @@
 //   uploads/<social_post_id>-<timestamp>.<ext>
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 const BUCKET = "social-cards";
 const MAX_DOWNLOAD_BYTES = 15 * 1024 * 1024; // 15 MB — cobre foto de jornal sem virar bomba
@@ -38,54 +39,8 @@ function shortId(): string {
   return Math.random().toString(36).slice(2, 8);
 }
 
-// Bloqueia SSRF: localhost, IPs privados (RFC1918), link-local (inclui IMDS
-// 169.254.169.254 da AWS/GCP), loopback IPv6.
-function isPrivateHost(host: string): boolean {
-  const h = host.toLowerCase();
-  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local")) return true;
-  if (h === "0.0.0.0" || h === "::" || h === "::1" || h === "[::1]") return true;
-  // IPv4 numérico
-  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (m) {
-    const o = m.slice(1, 5).map((n) => parseInt(n, 10));
-    if (o.some((n) => n < 0 || n > 255)) return true;
-    // 10.0.0.0/8
-    if (o[0] === 10) return true;
-    // 127.0.0.0/8
-    if (o[0] === 127) return true;
-    // 169.254.0.0/16 (link-local, IMDS)
-    if (o[0] === 169 && o[1] === 254) return true;
-    // 172.16.0.0/12
-    if (o[0] === 172 && o[1] >= 16 && o[1] <= 31) return true;
-    // 192.168.0.0/16
-    if (o[0] === 192 && o[1] === 168) return true;
-    // 0.0.0.0/8
-    if (o[0] === 0) return true;
-  }
-  // IPv6 privado/loopback básico
-  if (h.startsWith("fc") || h.startsWith("fd") || h.startsWith("fe80:")) return true;
-  return false;
-}
-
-function assertSafeUrl(raw: string): URL {
-  let u: URL;
-  try {
-    u = new URL(raw);
-  } catch {
-    throw new Error(`URL de imagem inválida: ${raw}`);
-  }
-  if (u.protocol !== "https:" && u.protocol !== "http:") {
-    throw new Error(`Protocolo não permitido: ${u.protocol}`);
-  }
-  // Em produção forçamos https
-  if (process.env.NODE_ENV === "production" && u.protocol !== "https:") {
-    throw new Error("Apenas https é aceito em produção");
-  }
-  if (isPrivateHost(u.hostname)) {
-    throw new Error(`Host bloqueado (privado/loopback): ${u.hostname}`);
-  }
-  return u;
-}
+// Proteção SSRF (host check privado/IMDS + redirect manual revalidado) vive em
+// @/lib/net/safe-fetch e é aplicada via safeFetch() abaixo.
 
 // Baixa de uma URL externa (Fal.ai, RSS source, etc) e sobe no nosso bucket.
 // Retorna a URL pública estável.
@@ -93,20 +48,18 @@ export async function downloadAndStoreImage(
   sourceUrl: string,
   pathPrefix: string,
 ): Promise<string> {
-  assertSafeUrl(sourceUrl);
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20_000);
 
   let res: Response;
   try {
-    res = await fetch(sourceUrl, {
+    // safeFetch valida o host + segue redirects revalidando cada hop (anti-SSRF).
+    res = await safeFetch(sourceUrl, {
       headers: {
         // Algumas fontes regionais bloqueiam UA vazio; manda um agent neutro.
         "User-Agent": "ZIMBANET-Studio/1.0 (+https://zimbanet.com)",
       },
       signal: controller.signal,
-      redirect: "follow",
     });
   } finally {
     clearTimeout(timer);

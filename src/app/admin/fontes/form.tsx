@@ -267,7 +267,7 @@ function SubmitRow({ mode }: { mode: "create" | "edit" }) {
         {pending ? "Salvando..." : mode === "create" ? "Criar fonte" : "Salvar alterações"}
       </button>
       <p className="text-fs-12 text-ink-500">
-        Pra coletar agora, rode <code className="font-mono text-fs-11 px-1.5 py-0.5 rounded border border-border-subtle bg-off-white">npm run curador</code> no terminal.
+        Pra coletar agora, use os botões em <a href="/admin/autonomo" className="font-semibold text-zimba-blue underline">Painel → Autônomo</a> (Coletar / Curador).
       </p>
     </div>
   );

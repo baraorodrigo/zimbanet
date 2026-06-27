@@ -9,13 +9,15 @@ esses adapters tratam as particularidades de cada portal:
 - **Portal Click Sul** não tem arquivo nem RSS — varremos home + várias
   páginas de categoria, filtramos por shape de URL (slug com 2+ hífens)
   e datamos pelo meta `article:published_time`.
+- **RSC Portal** usa homepage + editorias, título em `h2.post-title` e data
+  visível no HTML (`DD/MM/AAAA HH:MM`), então precisa parser próprio.
 
 Tanto o backfill (`scripts/backfill_week.py`) quanto o runner agendado
 (`app/sources/runner.py`) entram aqui — backfill com janela longa,
 runner com janela curta (default 36h).
 
 Despacho pelo runner: `source.config["kind"]` precisa ser
-"regional_ahora" ou "regional_clicksul".
+"regional_ahora", "regional_clicksul" ou "regional_rsc".
 """
 
 from __future__ import annotations
@@ -24,8 +26,9 @@ import json
 import re
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 from urllib.parse import urljoin
 
 import httpx
@@ -47,8 +50,10 @@ SLEEP_BETWEEN_REQUESTS = 0.3  # gentil com os portais
 
 AHORA_SOURCE_ID = "portal_ahora_imbituba"
 CLICKSUL_SOURCE_ID = "portal_clicksul_imbituba"
+RSC_SOURCE_ID = "rsc_portal"
 AHORA_BASE = "https://portalahora.com.br"
 CLICKSUL_BASE = "https://portalclicksul.com.br"
+RSC_BASE = "https://rscportal.com.br"
 
 CLICKSUL_LIST_PAGES = [
     "/",
@@ -63,6 +68,17 @@ CLICKSUL_LIST_PAGES = [
     "/clima",
     "/geral",
     "/economia",
+]
+
+RSC_LIST_PAGES = [
+    "/",
+    "/geral",
+    "/saude",
+    "/seguranca",
+    "/politica",
+    "/esportes",
+    "/entretenimento",
+    "/colunas",
 ]
 
 # Limites por uso. Backfill passa override; runner recorrente usa default.
@@ -110,11 +126,20 @@ def fetch(client: httpx.Client, url: str) -> str | None:
 # ============================================================================
 # Parsers comuns
 # ============================================================================
+# Fuso editorial: os portais regionais exibem horário em BRT. Datas SEM TZ
+# explícita são BRT (não UTC) — gravar como UTC deslocava a madrugada
+# (00:00–02:59) pro dia anterior, e a trava de recência do TS rejeitava
+# matéria legítima como "velha".
+BR_TZ = ZoneInfo("America/Sao_Paulo")
+
+
 def parse_iso(s: str) -> datetime | None:
     try:
         dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            # ClickSul manda "2026-06-27 00:30:00" (sem TZ) e isoformat aceita o
+            # espaço — sem TZ explícita é BRT, não UTC. (TZ explícita fica intacta.)
+            dt = dt.replace(tzinfo=BR_TZ)
         return dt
     except ValueError:
         return None
@@ -127,7 +152,15 @@ def parse_loose_dt(s: str) -> datetime | None:
         return None
     y, mo, d, h, mi = (int(g) for g in m.groups()[:5])
     sec = int(m.group(6) or 0)
-    return datetime(y, mo, d, h, mi, sec, tzinfo=timezone.utc)
+    return datetime(y, mo, d, h, mi, sec, tzinfo=BR_TZ)
+
+
+def parse_br_dt(s: str) -> datetime | None:
+    m = re.search(r"(\d{2})/(\d{2})/(\d{4})\s+(\d{2}):(\d{2})", s)
+    if not m:
+        return None
+    d, mo, y, h, mi = (int(g) for g in m.groups())
+    return datetime(y, mo, d, h, mi, tzinfo=BR_TZ)
 
 
 def extract_jsonld_date(soup: BeautifulSoup) -> datetime | None:
@@ -325,9 +358,7 @@ def _is_clicksul_article_url(href: str) -> bool:
     if path in _CLICKSUL_CATEGORY_PATHS:
         return False
     slug = path.lstrip("/")
-    if slug.count("-") < 2:
-        return False
-    return True
+    return slug.count("-") >= 2
 
 
 def _clicksul_collect_links(client: httpx.Client) -> set[str]:
@@ -404,6 +435,120 @@ def harvest_clicksul(
 
 
 # ============================================================================
+# RSC Portal
+# ============================================================================
+_RSC_CATEGORY_PATHS = {
+    "/geral",
+    "/saude",
+    "/seguranca",
+    "/politica",
+    "/esportes",
+    "/entretenimento",
+    "/colunas",
+    "/sobre_nos",
+    "/publicidade_legal",
+}
+
+
+def _is_rsc_article_url(href: str) -> bool:
+    if not href.startswith(RSC_BASE):
+        return False
+    path = href[len(RSC_BASE) :]
+    if not path.startswith("/") or path == "/":
+        return False
+    path = path.split("?", 1)[0].split("#", 1)[0].rstrip("/")
+    if not path or path in _RSC_CATEGORY_PATHS:
+        return False
+    m = re.match(r"^/([^/]+)/([^/]+)\.(\d+)$", path)
+    if not m:
+        return False
+    category = f"/{m.group(1)}"
+    return category in _RSC_CATEGORY_PATHS
+
+
+def _rsc_collect_links(client: httpx.Client) -> set[str]:
+    urls: set[str] = set()
+    for path in RSC_LIST_PAGES:
+        html = fetch(client, urljoin(RSC_BASE, path))
+        if not html:
+            continue
+        soup = BeautifulSoup(html, "html.parser")
+        for a in soup.find_all("a", href=True):
+            if not isinstance(a, Tag):
+                continue
+            href = a.get("href")
+            if not isinstance(href, str):
+                continue
+            absolute = urljoin(RSC_BASE, href)
+            if _is_rsc_article_url(absolute):
+                urls.add(absolute)
+        log.info("rsc_list_collected", path=path, running_total=len(urls))
+    return urls
+
+
+def _extract_rsc_date(soup: BeautifulSoup) -> datetime | None:
+    meta = soup.select_one(".post-meta-info")
+    if isinstance(meta, Tag):
+        dt = parse_br_dt(meta.get_text(" ", strip=True))
+        if dt is not None:
+            return dt
+    whole_page = soup.get_text(" ", strip=True)
+    return parse_br_dt(whole_page)
+
+
+def _parse_rsc_article(html: str, url: str) -> Article | None:
+    soup = BeautifulSoup(html, "html.parser")
+    title_tag = soup.select_one("h2.post-title") or soup.find("h1") or soup.find("h2")
+    title = (title_tag.get_text(strip=True) if isinstance(title_tag, Tag) else "") or (
+        extract_og_title(soup) or ""
+    )
+    if not title:
+        return None
+    video_url = extract_video_url(soup)
+    body_tag = soup.select_one(".entry-content")
+    body: str | None = None
+    if isinstance(body_tag, Tag):
+        for junk in body_tag.find_all(["script", "style", "iframe", "form"]):
+            junk.decompose()
+        body = body_tag.get_text("\n", strip=True)[:8000] or None
+    published_at = extract_meta_date(soup) or extract_jsonld_date(soup) or _extract_rsc_date(soup)
+    image_url = extract_og_image(soup)
+    return Article(
+        url=url,
+        title=title[:500],
+        body=body,
+        image_url=image_url,
+        published_at=published_at,
+        video_url=video_url,
+    )
+
+
+def harvest_rsc(
+    client: httpx.Client, since: datetime, until: datetime, *, max_items: int | None = None
+) -> list[Article]:
+    log.info("rsc_harvest_start", since=since.isoformat(), until=until.isoformat())
+    candidate_urls = _rsc_collect_links(client)
+    log.info("rsc_candidates", count=len(candidate_urls))
+    out: list[Article] = []
+    for url in sorted(candidate_urls):
+        html = fetch(client, url)
+        if not html:
+            continue
+        article = _parse_rsc_article(html, url)
+        if not article:
+            continue
+        if article.published_at is None:
+            continue
+        if not (since <= article.published_at <= until + timedelta(days=1)):
+            continue
+        out.append(article)
+        if max_items is not None and len(out) >= max_items:
+            log.info("rsc_max_items_hit", limit=max_items)
+            break
+    return out
+
+
+# ============================================================================
 # Adapters de runner — usados por app.sources.runner.run_source
 # ============================================================================
 def _articles_to_items(source_id: str, articles: list[Article]) -> list[dict[str, Any]]:
@@ -433,7 +578,7 @@ def _window_from_config(source: Source) -> tuple[datetime, datetime, int]:
     cfg = source.config or {}
     hours = int(cfg.get("window_hours", RECURRING_WINDOW_HOURS))
     max_items = int(cfg.get("max_items_per_run", RECURRING_MAX_ITEMS))
-    until = datetime.now(timezone.utc)
+    until = datetime.now(UTC)
     since = until - timedelta(hours=hours)
     return since, until, max_items
 
@@ -464,8 +609,22 @@ def collect_regional_clicksul(source: Source) -> list[dict[str, Any]]:
     return _articles_to_items(source.id, articles)
 
 
+def collect_regional_rsc(source: Source) -> list[dict[str, Any]]:
+    since, until, max_items = _window_from_config(source)
+    with make_client() as client:
+        articles = harvest_rsc(client, since, until, max_items=max_items)
+    log.info(
+        "regional_rsc_done",
+        source_id=source.id,
+        window_hours=int((until - since).total_seconds() // 3600),
+        articles=len(articles),
+    )
+    return _articles_to_items(source.id, articles)
+
+
 # Despacho pelo runner: config["kind"] → função
 KIND_ADAPTERS = {
     "regional_ahora": collect_regional_ahora,
     "regional_clicksul": collect_regional_clicksul,
+    "regional_rsc": collect_regional_rsc,
 }

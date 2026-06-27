@@ -68,3 +68,17 @@ INÍCIO · CIDADE · POLÍTICA · ESPORTE · CULTURA · POLÍCIA · PRAIAS · **
 - **Cores SEMPRE pelos tokens da marca** — nunca `blue-600`, `red-500`, `gray-*` para superfícies de marca. Use os 6 tokens.
 - **Slugs, copy, comentários:** PT-BR. URLs amigáveis (`/cidade/...`, `/zimbamilgrau`, `/bazardazimba`).
 - **Mobile-first** mas desktop deve brilhar em layout de 3 colunas.
+
+## Método de trabalho
+
+Seguir o fluxo do dono (skill global **`metodo-engenharia`**) — para cada feature/mudança/bug não-trivial:
+
+1. **Spec** do QUE antes de construir (feature nova/ambígua: `superpowers:brainstorming` + aprovação do dono antes de codar).
+2. **Construir** seguindo as Convenções acima (Server Components/Actions, `@supabase/ssr`, tokens da marca, PT-BR).
+3. **Verificar**: `npm run build` + `npm run lint` (e testes, se houver) — sem evidência, não dizer "pronto".
+4. **Revisão adversarial** (ferramenta Workflow) antes de subir — sobretudo em **auth/sessão (Supabase)**, dados de usuário e qualquer coisa que vá pra produção.
+5. **Gate do dono**: pedir o "sobe" explícito antes de cada deploy (aprovação de um não vale pro próximo).
+6. **Deploy** na VPS Hostinger via skill **`deploy-hostinger`** — criar tag de rollback antes, verificar no ar depois (200 + cert + logs).
+7. **Memória** do que ficou pendente/aprendido (skill `self-improving`).
+
+> Zimbanet **não tem domínio de dinheiro/centavos** — os padrões pesados de "arquitetura limpa / Money" do EventX **não se aplicam aqui**. O que se reusa é o PROCESSO acima, não os padrões técnicos do EventX.

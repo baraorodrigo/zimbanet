@@ -8,6 +8,7 @@ import { isStaff } from "@/lib/auth/admin";
 import { slugify, uniqueArticleSlug } from "@/lib/utils/slug";
 import { EDITORIA_SLUGS, type EditoriaSlug } from "@/lib/db/types";
 import { draftFromScored, finalizeArticle } from "@/lib/radar";
+import { sourceIsFromTodayByScoredId } from "@/lib/ai/recency";
 import { sendBreakingPush } from "@/lib/push/send";
 
 // Dispara push em background pra matéria recém-publicada com is_breaking=true.
@@ -491,7 +492,7 @@ export async function publishArticle(formData: FormData): Promise<void> {
 
   const { data: current } = await supabase
     .from("articles")
-    .select("status, title, body")
+    .select("status, title, body, scored_item_id")
     .eq("id", id)
     .maybeSingle();
   if (!current) throw new Error("Matéria não encontrada.");
@@ -503,6 +504,17 @@ export async function publishArticle(formData: FormData): Promise<void> {
   }
   if (((current.body as string) ?? "").trim().length < 50) {
     throw new Error("Corpo muito curto pra publicar (mínimo 50 caracteres).");
+  }
+
+  const admin = createAdminClient();
+  const sourceIsToday = await sourceIsFromTodayByScoredId(
+    admin,
+    (current.scored_item_id as string | null | undefined) ?? null,
+  );
+  if (sourceIsToday === false) {
+    throw new Error(
+      "Matéria de fato antigo não publica como notícia: a fonte não é de hoje. Se o fato não aconteceu hoje, não sobe no portal como notícia nova.",
+    );
   }
 
   const now = new Date().toISOString();
