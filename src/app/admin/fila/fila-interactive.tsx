@@ -83,8 +83,13 @@ export function FilaBulkBar() {
               start(async () => {
                 const ids = [...selected];
                 clear();
-                await publishBatch(ids);
+                const r = await publishBatch(ids);
                 router.refresh();
+                if (r.blocked) {
+                  alert(
+                    `${r.published} publicada(s). ${r.blocked} bloqueada(s): fonte não é de hoje. Continuam na Fila.`,
+                  );
+                }
               })
             }
             className="h-9 px-4 rounded-md bg-eco-green text-white text-[11px] uppercase tracking-[0.22em] font-bold hover:bg-green-700 transition-colors disabled:opacity-60"

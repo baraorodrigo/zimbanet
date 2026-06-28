@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from app.db.types import Source, SourceType
 from app.sources.dedup import content_hash, make_raw_id, semantic_hash
-from app.sources.regional import parse_br_dt, parse_iso, parse_loose_dt
+from app.sources.regional import extract_jsonld_date, parse_br_dt, parse_iso, parse_loose_dt
 
 _SP = ZoneInfo("America/Sao_Paulo")
 
@@ -34,6 +34,14 @@ def test_parse_loose_dt_is_brt() -> None:
 
 def test_parse_br_dt_is_brt() -> None:
     dt = parse_br_dt("27/06/2026 00:30")
+    assert dt is not None and dt.astimezone(_SP).day == 27
+
+
+def test_extract_jsonld_date_naive_is_brt() -> None:
+    from bs4 import BeautifulSoup
+
+    html = '<script type="application/ld+json">{"@type":"NewsArticle","datePublished":"2026-06-27T00:30:00"}</script>'
+    dt = extract_jsonld_date(BeautifulSoup(html, "html.parser"))
     assert dt is not None and dt.astimezone(_SP).day == 27
 
 

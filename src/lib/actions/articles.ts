@@ -8,7 +8,7 @@ import { isStaff } from "@/lib/auth/admin";
 import { slugify, uniqueArticleSlug } from "@/lib/utils/slug";
 import { EDITORIA_SLUGS, type EditoriaSlug } from "@/lib/db/types";
 import { draftFromScored, finalizeArticle } from "@/lib/radar";
-import { sourceIsFromTodayByScoredId } from "@/lib/ai/recency";
+import { checkCanPublish, evaluatePublish } from "@/lib/rules/article-publish";
 import { sendBreakingPush } from "@/lib/push/send";
 
 // Dispara push em background pra matéria recém-publicada com is_breaking=true.
@@ -146,6 +146,19 @@ export async function createArticle(
   const parsed = parseInput(formData);
   if ("error" in parsed) return { ok: false, error: parsed.error };
 
+  // Criar JÁ publicando passa pela MESMA regra (humano → exige só foto;
+  // conteúdo autoral pode não ter fonte externa). Sem isto era o 6º caminho
+  // de publicação sem trava.
+  if (parsed.status === "published") {
+    const chk = evaluatePublish({
+      heroImageUrl: parsed.hero_image_url,
+      sourceUrl: null,
+      scoredItemId: null,
+      sourceIsToday: null,
+    });
+    if (!chk.ok) return { ok: false, error: chk.motivo };
+  }
+
   const slug = parsed.slug
     ? slugify(parsed.slug)
     : await uniqueArticleSlug(supabase, parsed.title);
@@ -228,6 +241,15 @@ export async function updateArticle(
   const slug = parsed.slug ? slugify(parsed.slug) : (current.slug as string);
 
   const goingLive = parsed.status === "published" && current.status !== "published";
+  // Trava única de publicação (foto+fonte+recência). A foto pode estar sendo
+  // definida NESTE form, então passa o valor do form (não o do banco).
+  if (goingLive) {
+    const chk = await checkCanPublish(
+      id,
+      parsed.hero_image_url ? { heroImageUrl: parsed.hero_image_url } : {},
+    );
+    if (!chk.ok) return { ok: false, error: chk.motivo };
+  }
   const now = new Date().toISOString();
 
   const { error } = await supabase
@@ -295,6 +317,10 @@ export async function approveArticle(formData: FormData): Promise<void> {
   const id = field(formData, "id");
   if (!id) throw new Error("ID ausente.");
 
+  // Trava única de publicação (foto+fonte+recência) — fecha a Fila.
+  const chk = await checkCanPublish(id);
+  if (!chk.ok) throw new Error(chk.motivo);
+
   const { data, error } = await supabase
     .from("articles")
     .update({
@@ -340,14 +366,21 @@ export async function approveArticle(formData: FormData): Promise<void> {
 // o resto. Cada uma finaliza (Visual+Distribuidor) em background.
 export async function publishBatch(
   ids: string[],
-): Promise<{ ok: boolean; published: number; error?: string }> {
+): Promise<{ ok: boolean; published: number; blocked?: number; error?: string }> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!isStaff(user)) return { ok: false, published: 0, error: "Sem permissão." };
   const actor = user!.email ?? user!.id;
   const clean = Array.from(new Set((ids ?? []).filter(Boolean)));
   let published = 0;
+  let blocked = 0;
   for (const id of clean) {
+    // Trava única: matéria sem foto / de fato antigo é PULADA (não derruba o lote).
+    const chk = await checkCanPublish(id);
+    if (!chk.ok) {
+      blocked += 1;
+      continue;
+    }
     const { data, error } = await supabase
       .from("articles")
       .update({
@@ -384,7 +417,7 @@ export async function publishBatch(
   }
   revalidatePath("/admin", "layout");
   revalidatePath("/admin/fila");
-  return { ok: true, published };
+  return { ok: true, published, blocked };
 }
 
 // === REDIGIR COM AI =========================================================
@@ -506,16 +539,9 @@ export async function publishArticle(formData: FormData): Promise<void> {
     throw new Error("Corpo muito curto pra publicar (mínimo 50 caracteres).");
   }
 
-  const admin = createAdminClient();
-  const sourceIsToday = await sourceIsFromTodayByScoredId(
-    admin,
-    (current.scored_item_id as string | null | undefined) ?? null,
-  );
-  if (sourceIsToday === false) {
-    throw new Error(
-      "Matéria de fato antigo não publica como notícia: a fonte não é de hoje. Se o fato não aconteceu hoje, não sobe no portal como notícia nova.",
-    );
-  }
+  // Trava única de publicação (foto+fonte+recência).
+  const chk = await checkCanPublish(id);
+  if (!chk.ok) throw new Error(chk.motivo);
 
   const now = new Date().toISOString();
   const { data, error } = await supabase

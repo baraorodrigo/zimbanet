@@ -189,7 +189,11 @@ def extract_jsonld_date(soup: BeautifulSoup) -> datetime | None:
                 val = entity.get(key)
                 if isinstance(val, str) and val:
                     try:
-                        return datetime.fromisoformat(val.replace("Z", "+00:00"))
+                        dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
+                        if dt.tzinfo is None:
+                            # Sem TZ explícita = BRT (igual aos outros parsers).
+                            dt = dt.replace(tzinfo=BR_TZ)
+                        return dt
                     except ValueError:
                         continue
     return None
