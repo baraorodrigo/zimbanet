@@ -10,33 +10,96 @@ const BASE = process.env.RADAR_BASE_URL || "http://127.0.0.1:8100";
 // "token expirou". 3 min cobre o pipeline sem travar o clique.
 const TIMEOUT_MS = 180_000;
 
-type RadarError = { error: string; detail?: string };
+type RadarErrorBody = { error: string; detail?: string };
 
-async function radarFetch<T>(path: string, init?: RequestInit): Promise<T> {
+// Erro tipado: 'transient' = falha temporária (NÃO é "o motor caiu"); 'retryable'
+// = vale tentar de novo (rede/5xx falham rápido; timeout NÃO retenta pra não
+// dobrar a espera). A mensagem de transitória deixa claro que é momentâneo — pra
+// o agente não ler como "token/MCP/portal caiu" e alarmar o dono à toa.
+export class RadarError extends Error {
+  transient: boolean;
+  retryable: boolean;
+  status?: number;
+  constructor(
+    message: string,
+    opts: { transient: boolean; retryable: boolean; status?: number },
+  ) {
+    super(message);
+    this.name = "RadarError";
+    this.transient = opts.transient;
+    this.retryable = opts.retryable;
+    this.status = opts.status;
+  }
+}
+
+const RETRYABLE_STATUS = new Set([502, 503, 504]);
+
+async function radarFetchOnce<T>(path: string, init?: RequestInit): Promise<T> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  let res: Response;
   try {
-    const res = await fetch(`${BASE}${path}`, {
+    res = await fetch(`${BASE}${path}`, {
       method: "POST",
       cache: "no-store",
       signal: ctrl.signal,
       headers: { "content-type": "application/json" },
       ...init,
     });
-    const raw = await res.text();
-    if (!res.ok) {
-      let detail = "";
-      try {
-        const body = JSON.parse(raw) as RadarError;
-        detail = body.detail ?? body.error ?? "";
-      } catch {
-        detail = raw;
-      }
-      throw new Error(`radar ${res.status}: ${detail || res.statusText}`);
-    }
-    return JSON.parse(raw) as T;
+  } catch (e) {
+    const aborted = (e as Error)?.name === "AbortError";
+    // timeout: transitório mas NÃO retenta (dobraria a espera). rede: retenta.
+    throw new RadarError(
+      aborted
+        ? "o motor demorou demais (timeout)"
+        : `falha de rede ao falar com o motor: ${(e as Error)?.message ?? String(e)}`,
+      { transient: true, retryable: !aborted },
+    );
   } finally {
     clearTimeout(t);
+  }
+  const raw = await res.text();
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const body = JSON.parse(raw) as RadarErrorBody;
+      detail = body.detail ?? body.error ?? "";
+    } catch {
+      detail = raw;
+    }
+    const transient =
+      RETRYABLE_STATUS.has(res.status) || res.status === 408 || res.status === 429;
+    throw new RadarError(`radar ${res.status}: ${detail || res.statusText}`, {
+      transient,
+      retryable: transient,
+      status: res.status,
+    });
+  }
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    throw new RadarError("resposta do motor não é JSON válido", {
+      transient: false,
+      retryable: false,
+    });
+  }
+}
+
+async function radarFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  try {
+    return await radarFetchOnce<T>(path, init);
+  } catch (e) {
+    // NÃO retenta automaticamente: várias chamadas do radar (ex.: distribuidor,
+    // finalize) NÃO são idempotentes — retentar uma resposta perdida duplicaria
+    // (post social repetido). Em falha transitória, devolve mensagem CLARA pra o
+    // agente não ler como "infra caída" e ele mesmo decidir tentar de novo.
+    if (e instanceof RadarError && e.transient) {
+      throw new RadarError(
+        `motor temporariamente indisponível (${e.message}) — é momentâneo, tente de novo em instantes (não é o token nem o site).`,
+        { transient: true, retryable: false, status: e.status },
+      );
+    }
+    throw e;
   }
 }
 

@@ -6,10 +6,9 @@ detalhe do client. Cada função recebe/devolve dataclass ou dict simples.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
-from zoneinfo import ZoneInfo
 
 from app.clients import supabase_client
 from app.db.types import (
@@ -30,7 +29,6 @@ from app.db.types import (
 from app.logging import get_logger
 
 log = get_logger("repositories")
-NEWS_TZ = ZoneInfo("America/Sao_Paulo")
 
 
 # ============================================================================
@@ -347,136 +345,6 @@ def fetch_published_articles_no_analysis(limit: int = 10) -> list[Article]:
     reviewed = {r["entity_id"] for r in (audit_resp.data or [])}
     pending = [r for r in rows if r["id"] not in reviewed][:limit]
     return [Article.model_validate(r) for r in pending]
-
-
-def fetch_drafts_for_autopublish(
-    *,
-    min_confidence: float,
-    max_risk: float,
-    limit: int = 5,
-) -> list[Article]:
-    """Drafts/reviews confiáveis o suficiente pra ir ao ar sozinhos.
-
-    Filtra apenas artigos criados nas últimas 48h para evitar publicar
-    notícia velha que ficou esquecida na fila.
-    """
-    sb = supabase_client()
-    # Só artigos criados nas últimas 48h
-    cutoff = datetime.now(UTC) - timedelta(hours=48)
-    resp = (
-        sb.table("articles")
-        .select("*")
-        .in_("status", [ArticleStatus.draft.value, ArticleStatus.review.value])
-        .gte("confidence", min_confidence)
-        .lte("risk_score", max_risk)
-        .gte("created_at", cutoff.isoformat())
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
-    )
-    return [Article.model_validate(r) for r in (resp.data or [])]
-
-
-def _parse_db_datetime(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
-
-
-def _source_published_at_by_scored_item(sb: Any, scored_item_id: str | None) -> datetime | None:
-    if not scored_item_id:
-        return None
-    scored = (
-        sb.table("scored_items")
-        .select("raw_item_id")
-        .eq("id", scored_item_id)
-        .limit(1)
-        .execute()
-    )
-    scored_rows = scored.data or []
-    if not scored_rows:
-        return None
-    raw_item_id = scored_rows[0].get("raw_item_id")
-    if not raw_item_id:
-        return None
-    raw = (
-        sb.table("raw_items")
-        .select("published_at")
-        .eq("id", raw_item_id)
-        .limit(1)
-        .execute()
-    )
-    raw_rows = raw.data or []
-    if not raw_rows:
-        return None
-    published_at = raw_rows[0].get("published_at")
-    if not isinstance(published_at, str):
-        return None
-    return _parse_db_datetime(published_at)
-
-
-def _is_today_in_news_tz(dt: datetime, now: datetime) -> bool:
-    left = dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
-    right = now if now.tzinfo is not None else now.replace(tzinfo=UTC)
-    return left.astimezone(NEWS_TZ).date() == right.astimezone(NEWS_TZ).date()
-
-
-def publish_article(article_id: str, *, auto: bool = False) -> Article | None:
-    """Promove um artigo a publicado. Aplica published_at=now.
-
-    Se a matéria veio do radar e a fonte tem data conhecida, ela precisa ser de
-    HOJE no fuso editorial do portal. Sem data de hoje, não sobe como notícia.
-    Se a fonte não tiver data, mantém a trava antiga de 7 dias pelo created_at.
-    """
-    sb = supabase_client()
-    existing = sb.table("articles").select("*").eq("id", article_id).limit(1).execute()
-    rows = existing.data or []
-    if not rows:
-        return None
-    article = Article.model_validate(rows[0])
-    now = datetime.now(UTC)
-
-    source_published_at = _source_published_at_by_scored_item(sb, article.scored_item_id)
-    if source_published_at is not None:
-        if not _is_today_in_news_tz(source_published_at, now):
-            log.warning(
-                "publish_article_source_not_today",
-                article_id=article_id,
-                source_published_at=source_published_at.isoformat(),
-            )
-            return None
-    else:
-        max_age = timedelta(days=7)
-        created = (
-            article.created_at.replace(tzinfo=UTC)
-            if article.created_at.tzinfo is None
-            else article.created_at
-        )
-        if now - created > max_age:
-            log.warning(
-                "publish_article_too_old",
-                article_id=article_id,
-                created_at=article.created_at.isoformat(),
-            )
-            return None
-
-    payload = {
-        "status": ArticleStatus.published.value,
-        "published_at": now.isoformat(),
-        "auto_published": auto,
-    }
-    resp = (
-        sb.table("articles")
-        .update(payload)
-        .eq("id", article_id)
-        .execute()
-    )
-    rows = resp.data or []
-    return Article.model_validate(rows[0]) if rows else None
 
 
 def fetch_articles_without_visual(limit: int = 5) -> list[Article]:

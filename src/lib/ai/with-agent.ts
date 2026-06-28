@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashToken } from "./tokens";
 import { checkPermission, type AgentPermissions } from "./permissions";
+import { RadarError } from "@/lib/radar";
 
 type AgentRow = {
   id: string;
@@ -100,6 +101,13 @@ export function withAgent(
         started_at: startedAt,
         finished_at: new Date().toISOString(),
       });
+      // RadarError já carrega mensagem clara e segura ("momentâneo, não é o
+      // token nem o site") — propaga pro agente em vez de "erro interno"
+      // genérico, com 503 se transitória (pra ele entender que é só esperar).
+      // Outros erros ficam genéricos pra não vazar detalhe interno.
+      if (err instanceof RadarError) {
+        return json({ ok: false, error: err.message }, err.transient ? 503 : 502);
+      }
       return json({ ok: false, error: "erro interno" }, 500);
     }
   };
