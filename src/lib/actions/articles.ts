@@ -154,7 +154,7 @@ export async function createArticle(
       heroImageUrl: parsed.hero_image_url,
       sourceUrl: null,
       scoredItemId: null,
-      sourceIsToday: null,
+      sourceIsRecent: null,
     });
     if (!chk.ok) return { ok: false, error: chk.motivo };
   }
@@ -309,6 +309,14 @@ export async function updateArticle(
 
 // === FILA: APPROVE / REJECT / UNPUBLISH =====================================
 
+// Falha de REGRA numa ação de painel (Server Action via <form>): volta pra tela
+// de origem com ?erro= pra MOSTRAR o motivo claro ("sem foto", "fonte não é de
+// hoje"), em vez de jogar o usuário num boundary de erro genérico que esconde o
+// porquê em produção. Só pra regras de negócio — erro de infra continua `throw`.
+function failBackTo(path: string, motivo: string): never {
+  redirect(`${path}?erro=${encodeURIComponent(motivo)}`);
+}
+
 export async function approveArticle(formData: FormData): Promise<void> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -319,7 +327,7 @@ export async function approveArticle(formData: FormData): Promise<void> {
 
   // Trava única de publicação (foto+fonte+recência) — fecha a Fila.
   const chk = await checkCanPublish(id);
-  if (!chk.ok) throw new Error(chk.motivo);
+  if (!chk.ok) failBackTo("/admin/fila", chk.motivo);
 
   const { data, error } = await supabase
     .from("articles")
@@ -529,19 +537,20 @@ export async function publishArticle(formData: FormData): Promise<void> {
     .eq("id", id)
     .maybeSingle();
   if (!current) throw new Error("Matéria não encontrada.");
+  const voltar = `/admin/materias/${id}`;
   if (current.status === "published") {
-    throw new Error("Matéria já está publicada.");
+    failBackTo(voltar, "Matéria já está publicada.");
   }
   if (((current.title as string) ?? "").trim().length < 3) {
-    throw new Error("Título muito curto pra publicar.");
+    failBackTo(voltar, "Título muito curto pra publicar.");
   }
   if (((current.body as string) ?? "").trim().length < 50) {
-    throw new Error("Corpo muito curto pra publicar (mínimo 50 caracteres).");
+    failBackTo(voltar, "Corpo muito curto pra publicar (mínimo 50 caracteres).");
   }
 
   // Trava única de publicação (foto+fonte+recência).
   const chk = await checkCanPublish(id);
-  if (!chk.ok) throw new Error(chk.motivo);
+  if (!chk.ok) failBackTo(voltar, chk.motivo);
 
   const now = new Date().toISOString();
   const { data, error } = await supabase

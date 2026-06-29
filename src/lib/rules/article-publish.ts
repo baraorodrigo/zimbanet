@@ -8,18 +8,18 @@
 // interruptor agent_autopublish_enabled (gate só do agente, antes desta regra).
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sourceIsFromTodayByScoredId } from "@/lib/ai/recency";
+import { sourceIsRecentByScoredId } from "@/lib/ai/recency";
 
 export type PublishCheck = { ok: true } | { ok: false; motivo: string };
 
-// Núcleo PURO e testável. sourceIsToday: true/false = data conhecida; null =
+// Núcleo PURO e testável. sourceIsRecent: true/false = data conhecida; null =
 // data desconhecida (só source_url ou sem data) → passa na recência, pois não dá
 // pra afirmar que é velha (foto+fonte seguem obrigatórias).
 export function evaluatePublish(input: {
   heroImageUrl?: string | null;
   sourceUrl?: string | null;
   scoredItemId?: string | null;
-  sourceIsToday: boolean | null;
+  sourceIsRecent: boolean | null;
   // SÓ o agente exige fonte rastreável (anti-"escrever de cabeça"). O staff pode
   // publicar conteúdo AUTORAL (editorial/opinião/peça própria) sem fonte externa.
   requireSource?: boolean;
@@ -38,10 +38,10 @@ export function evaluatePublish(input: {
       };
     }
   }
-  if (input.sourceIsToday === false) {
+  if (input.sourceIsRecent === false) {
     return {
       ok: false,
-      motivo: "matéria de fato antigo não publica como notícia: a fonte não é de hoje.",
+      motivo: "matéria de fato velho não publica como notícia: a fonte tem mais de 3 dias.",
     };
   }
   return { ok: true };
@@ -63,7 +63,7 @@ export async function checkCanPublish(
     .eq("id", articleId)
     .maybeSingle();
   if (!a) return { ok: false, motivo: "matéria não encontrada." };
-  const sourceIsToday = await sourceIsFromTodayByScoredId(
+  const sourceIsRecent = await sourceIsRecentByScoredId(
     sb,
     (a.scored_item_id as string | null | undefined) ?? null,
     now,
@@ -72,7 +72,7 @@ export async function checkCanPublish(
     heroImageUrl: "heroImageUrl" in opts ? opts.heroImageUrl : (a.hero_image_url as string | null),
     sourceUrl: a.source_url as string | null,
     scoredItemId: a.scored_item_id as string | null,
-    sourceIsToday,
+    sourceIsRecent,
     requireSource: opts.requireSource,
   });
 }

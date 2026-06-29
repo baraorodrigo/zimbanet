@@ -30,7 +30,13 @@ const STATUS_LABEL: Record<string, string> = {
   archived: "arquivado",
 };
 
-export default async function EditMateriaPage({ params }: { params: { id: string } }) {
+export default async function EditMateriaPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { erro?: string };
+}) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("articles")
@@ -65,6 +71,12 @@ export default async function EditMateriaPage({ params }: { params: { id: string
         title={data.title as string}
         sub={`Editando matéria · criada em ${new Date(data.created_at as string).toLocaleString("pt-BR")}`}
       />
+
+      {searchParams.erro ? (
+        <div className="mt-6 rounded-md border border-alert-red bg-alert-red/5 p-4 text-fs-14 text-alert-red">
+          ⚠ Não publicou: {searchParams.erro}
+        </div>
+      ) : null}
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
         {!isPublished && (

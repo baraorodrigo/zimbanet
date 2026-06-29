@@ -3,7 +3,7 @@ import { withAgent } from "@/lib/ai/with-agent";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { draftFromScored } from "@/lib/radar";
 import { downloadAndStoreImage } from "@/lib/storage-images";
-import { sourceIsFromTodayByScoredId } from "@/lib/ai/recency";
+import { sourceIsRecentByScoredId } from "@/lib/ai/recency";
 
 export const dynamic = "force-dynamic";
 
@@ -19,15 +19,16 @@ export const POST = withAgent(
     const scoredId = route.params.id;
     const sb = createAdminClient();
 
-    // TRAVA NOTÍCIA VELHA: pauta só vira matéria se a fonte for de HOJE no
-    // fuso editorial do portal. Se é de ontem, já não entra como notícia nova.
-    const sourceIsToday = await sourceIsFromTodayByScoredId(sb, scoredId);
-    if (sourceIsToday === false) {
+    // TRAVA NOTÍCIA VELHA: pauta só vira matéria se a fonte for recente (até 3
+    // dias). Compara IDADE, não dia do calendário — não barra de madrugada algo
+    // de poucas horas atrás só por ter virado a meia-noite.
+    const sourceIsRecent = await sourceIsRecentByScoredId(sb, scoredId);
+    if (sourceIsRecent === false) {
       return NextResponse.json(
         {
           ok: false,
           error:
-            "pauta antiga: a fonte não é de hoje. Se o fato não aconteceu hoje, não vale virar notícia nova no portal.",
+            "pauta antiga: a fonte tem mais de 3 dias. Fato velho não vira notícia nova no portal.",
         },
         { status: 422 },
       );

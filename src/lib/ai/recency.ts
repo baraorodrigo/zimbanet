@@ -53,14 +53,22 @@ export async function sourceAgeDaysByScoredId(
   return (Date.now() - new Date(pub).getTime()) / 86_400_000;
 }
 
-// Regra editorial do Rodrigo: notícia sem data de HOJE não sobe.
-// Se não houver data conhecida, devolve null e deixa outras travas decidirem.
-export async function sourceIsFromTodayByScoredId(
+// Fonte mais velha que isto não vira notícia (evita publicar fato velho).
+// Decisão editorial do Rodrigo (2026-06): 72h cobre hoje/ontem/anteontem e é
+// IMUNE ao bug de "vira ontem à meia-noite" — compara IDADE, não dia do calendário.
+export const MAX_SOURCE_AGE_HOURS = 72;
+
+// "A fonte é recente o bastante pra virar notícia?" Antes era "é de hoje" (dia do
+// calendário) — o que barrava uma matéria de 3h atrás só por já ter passado da
+// meia-noite. Agora é por IDADE (≤ MAX_SOURCE_AGE_HOURS). true/false = data
+// conhecida; null = data desconhecida → outras travas decidem.
+export async function sourceIsRecentByScoredId(
   sb: AdminClient,
   scoredItemId: string | null | undefined,
   now: Date = new Date(),
 ): Promise<boolean | null> {
   const pub = await sourcePublishedAtByScoredId(sb, scoredItemId);
   if (!pub) return null;
-  return dayKeyInNewsTz(pub) === dayKeyInNewsTz(now);
+  const ageHours = (now.getTime() - new Date(pub).getTime()) / 3_600_000;
+  return ageHours <= MAX_SOURCE_AGE_HOURS;
 }

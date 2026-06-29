@@ -167,6 +167,10 @@ def _render_pack(
     rendered: list[dict[str, Any]] = []
     for channel, fmt in CHANNEL_TO_FORMAT.items():
         post_id = persisted_post_ids.get(channel)
+        if post_id is None:
+            # Canal preservado (já foi pra rede) ou não persistido neste run —
+            # não re-renderiza (evitava render órfão com social_post_id=None).
+            continue
         try:
             result = render_card(
                 fmt=fmt,
@@ -232,27 +236,55 @@ def distribute_article(
     rendered: list[dict[str, Any]] = []
     if persist:
         sb = supabase_client()
+        # Idempotente (1 social_post por (article_id, channel)) via UPSERT na
+        # unique (article_id, channel): re-rodar não duplica e é seguro sob
+        # concorrência (ON CONFLICT, sem corrida de delete+insert). Só regenera
+        # canais ainda EM ABERTO ('pending'/'generating'). PRESERVA os já
+        # finalizados — enviados à rede ('published'/'scheduled'), curados pelo
+        # editor ('ready') e descartados ('failed') — pra não clobrar trabalho do
+        # editor nem ressuscitar post dispensado. Pra refazer um pronto, o editor
+        # limpa a mídia (volta a 'pending') e re-roda.
+        existing = (
+            sb.table("social_posts")
+            .select("channel,status")
+            .eq("article_id", article.id)
+            .execute()
+        )
+        preserved = {
+            r["channel"]
+            for r in (existing.data or [])
+            if r.get("status") in ("published", "scheduled", "ready", "failed")
+        }
         rows: list[dict[str, Any]] = []
         for channel in CHANNELS:
-            content = pack.get(channel, {})
-            row: dict[str, Any] = {
-                "article_id": article.id,
-                "channel": channel,
-                "format": _channel_format(channel),
-                "status": "pending",
-                "prompt_version": PROMPT_VERSION,
-            }
-            if "caption" in content:
-                row["caption"] = content["caption"]
-            if "hashtags" in content:
-                row["hashtags"] = content["hashtags"]
-            if "text_short" in content:
-                row["text_short"] = content["text_short"]
-            rows.append(row)
-        resp = sb.table("social_posts").insert(rows).execute()
-        for inserted in resp.data or []:
-            persisted_ids.append(inserted["id"])
-            persisted_by_channel[inserted["channel"]] = inserted["id"]
+            if channel in preserved:
+                continue  # já finalizado/curado/enviado/descartado — não mexe
+            content = pack.get(channel)
+            if not content:
+                continue  # pack não trouxe esse canal — não cria post vazio
+            # Chaves consistentes entre as linhas pro upsert não zerar uma
+            # coluna que faltasse em outra linha do lote.
+            rows.append(
+                {
+                    "article_id": article.id,
+                    "channel": channel,
+                    "format": _channel_format(channel),
+                    "status": "pending",
+                    "prompt_version": PROMPT_VERSION,
+                    "caption": content.get("caption"),
+                    "hashtags": content.get("hashtags", []),
+                    "text_short": content.get("text_short"),
+                }
+            )
+        if rows:
+            resp = (
+                sb.table("social_posts")
+                .upsert(rows, on_conflict="article_id,channel")
+                .execute()
+            )
+            for inserted in resp.data or []:
+                persisted_ids.append(inserted["id"])
+                persisted_by_channel[inserted["channel"]] = inserted["id"]
 
         # Render dos templates oficiais (card/story/banner). WhatsApp não tem visual.
         should_render = settings.render_enabled if render is None else render

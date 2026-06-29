@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function FilaPage({
   searchParams,
 }: {
-  searchParams: { gerando?: string };
+  searchParams: { gerando?: string; erro?: string };
 }) {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -41,6 +41,12 @@ export default async function FilaPage({
       />
 
       {searchParams.gerando ? <GerandoBanner /> : null}
+
+      {searchParams.erro ? (
+        <div className="mt-6 rounded-md border border-alert-red bg-alert-red/5 p-4 text-fs-14 text-alert-red">
+          ⚠ Não publicou: {searchParams.erro}
+        </div>
+      ) : null}
 
       {error && (
         <div className="mt-6 rounded-md border border-alert-red bg-alert-red/5 p-4 text-fs-14 text-alert-red">
