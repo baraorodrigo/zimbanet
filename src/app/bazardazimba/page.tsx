@@ -139,7 +139,7 @@ export default async function BazarDaZimbaPage({
                 </OpenLoginButton>
               )}
               <a
-                href="https://wa.me/5548999999999"
+                href="https://wa.me/5548996663645"
                 className="border border-navy text-navy text-[11px] uppercase tracking-[0.28em] font-bold px-7 h-12 inline-flex items-center justify-center gap-2 hover:bg-navy hover:text-off-white transition-colors"
               >
                 <Icon name="whatsapp" size={14} /> Tirar dúvida

@@ -32,7 +32,14 @@ export default function PautaPage() {
         </div>
         <div className="rounded-md bg-white border border-border-subtle p-5">
           <p className="text-[10px] uppercase tracking-[0.22em] font-bold text-zimba-gold mb-2">WhatsApp</p>
-          <p className="font-display text-fs-22 font-bold text-navy">(48) 9 9999-9999</p>
+          <a
+            href="https://wa.me/5548996663645"
+            target="_blank"
+            rel="noreferrer noopener"
+            className="font-display text-fs-22 font-bold text-navy hover:text-zimba-gold"
+          >
+            (48) 99666-3645
+          </a>
           <p className="text-fs-13 text-ink-500 mt-2">Foto, vídeo, alerta rápido. Atende 24/7 em breaking.</p>
         </div>
       </div>
